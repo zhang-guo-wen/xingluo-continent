@@ -1,6 +1,4 @@
-/* 像素游戏风格 */
-
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+/* 像素游戏风格 — 字体在 globals.css 中加载 */
 
 :root {
   /* 主题色 */

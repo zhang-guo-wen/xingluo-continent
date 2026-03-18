@@ -65,6 +65,9 @@ async function ensureSchema() {
       UNIQUE (city_id, user_id)
     )
   `;
+  // 确保 plaza_users 有 city_id 列（跨模块迁移）
+  await sql`ALTER TABLE plaza_users ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT 'xingluo'`.catch(() => {});
+
   await sql`
     INSERT INTO cities (id, name, description, color, icon, galaxy_x, galaxy_y, galaxy_z, grid_x, grid_y, grid_w, grid_h, capacity, creator_id, status, vote_threshold)
     VALUES ('xingluo', '星罗城', '所有冒险者的起点，星罗大陆的中心城市', '#4a9c5d', 'castle', 0, 0, 0, 7, 5, 6, 5, 1000000, 'system', 'active', 10000)

@@ -29,6 +29,10 @@ async function ensureSchema() {
       joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  // 迁移：给已有表加新列
+  await sql`ALTER TABLE plaza_users ADD COLUMN IF NOT EXISTS wallet_address TEXT`.catch(() => {});
+  await sql`ALTER TABLE plaza_users ADD COLUMN IF NOT EXISTS city_id TEXT NOT NULL DEFAULT 'xingluo'`.catch(() => {});
+
   await sql`
     CREATE TABLE IF NOT EXISTS plaza_posts (
       id TEXT PRIMARY KEY,
