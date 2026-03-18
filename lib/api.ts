@@ -1,14 +1,11 @@
 "use client";
 
 import type {
-  PlazaUser,
-  PlazaPostWithReactions,
-  Zone,
-  ReactionType,
-  PostReactions,
+  PlazaUser, PlazaPostWithReactions, City, ReactionType, PostReactions,
+  UserSkill, UserItem, UserTask, ItemCategory, TaskStatus, UserSearchParams,
 } from "./types";
 
-// ============ 通用请求 ============
+// ============ 通用 ============
 
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -26,6 +23,26 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+async function put<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PUT ${url} → ${res.status}`);
+  return res.json();
+}
+
+async function del<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`DELETE ${url} → ${res.status}`);
+  return res.json();
+}
+
 // ============ 用户 ============
 
 export async function fetchCurrentUser() {
@@ -34,59 +51,116 @@ export async function fetchCurrentUser() {
 }
 
 export async function fetchPlazaUsers(): Promise<PlazaUser[]> {
-  const d = await get<{ users: PlazaUser[] }>("/api/plaza/users");
-  return d.users;
+  return (await get<{ users: PlazaUser[] }>("/api/plaza/users")).users;
+}
+
+export async function searchUsers(params: UserSearchParams): Promise<PlazaUser[]> {
+  const qs = new URLSearchParams();
+  if (params.name) qs.set("name", params.name);
+  if (params.occupation) qs.set("occupation", params.occupation);
+  if (params.description) qs.set("description", params.description);
+  if (params.cityId) qs.set("cityId", params.cityId);
+  if (params.limit) qs.set("limit", String(params.limit));
+  return (await get<{ users: PlazaUser[] }>(`/api/plaza/users/search?${qs}`)).users;
+}
+
+export async function updateProfile(userId: string, data: {
+  name?: string; occupation?: string; description?: string; walletAddress?: string;
+}): Promise<PlazaUser> {
+  return (await put<{ user: PlazaUser }>("/api/profile", { userId, ...data })).user;
 }
 
 // ============ 帖子 ============
 
 export async function fetchPosts(userId?: string): Promise<PlazaPostWithReactions[]> {
   const qs = userId ? `?userId=${userId}` : "";
-  const d = await get<{ posts: PlazaPostWithReactions[] }>(`/api/plaza/posts${qs}`);
-  return d.posts;
+  return (await get<{ posts: PlazaPostWithReactions[] }>(`/api/plaza/posts${qs}`)).posts;
 }
 
 export async function createPost(body: {
-  userId: string;
-  userName: string;
-  userAvatar: string | null;
-  content: string;
+  userId: string; userName: string; userAvatar: string | null; content: string;
 }) {
   return post<{ post: PlazaPostWithReactions }>("/api/plaza/posts", body);
 }
 
-export async function reactToPost(
-  postId: string,
-  userId: string,
-  action: ReactionType
-): Promise<PostReactions> {
+export async function reactToPost(postId: string, userId: string, action: ReactionType): Promise<PostReactions> {
   return post<PostReactions>(`/api/plaza/posts/${postId}/react`, { userId, action });
 }
 
-// ============ 区域 ============
+// ============ 城市 ============
 
-export async function fetchZones(): Promise<Zone[]> {
-  const d = await get<{ zones: Zone[] }>("/api/plaza/zones");
-  return d.zones;
+export async function fetchCities(): Promise<City[]> {
+  return (await get<{ cities: City[] }>("/api/plaza/cities")).cities;
 }
 
-export async function proposeZone(body: {
-  name: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  creatorId: string;
+export async function proposeCity(body: {
+  name: string; description?: string; color?: string; icon?: string; creatorId: string;
 }) {
-  return post<{ zone: Zone }>("/api/plaza/zones", body);
+  return post<{ city: City }>("/api/plaza/cities", body);
 }
 
-export async function voteZone(
-  zoneId: string,
-  userId: string,
-  vote: "approve" | "reject"
-) {
-  return post<{ zone: Zone; activated: boolean }>(
-    `/api/plaza/zones/${zoneId}/vote`,
-    { userId, vote }
-  );
+export async function voteCity(cityId: string, userId: string) {
+  return post<{ city: City; activated: boolean }>(`/api/plaza/cities/${cityId}/vote`, { userId });
+}
+
+// 兼容旧接口
+export const fetchZones = fetchCities;
+export const proposeZone = proposeCity;
+export const voteZone = voteCity;
+
+// ============ 技能 ============
+
+export async function fetchSkills(userId: string): Promise<UserSkill[]> {
+  return (await get<{ skills: UserSkill[] }>(`/api/profile/skills?userId=${userId}`)).skills;
+}
+
+export async function addSkill(userId: string, name: string, description?: string): Promise<UserSkill> {
+  return (await post<{ skill: UserSkill }>("/api/profile/skills", { userId, name, description })).skill;
+}
+
+export async function removeSkill(skillId: string, userId: string): Promise<void> {
+  await del("/api/profile/skills", { skillId, userId });
+}
+
+// ============ 商品 ============
+
+export async function fetchUserItems(userId: string): Promise<UserItem[]> {
+  return (await get<{ items: UserItem[] }>(`/api/profile/items?userId=${userId}`)).items;
+}
+
+export async function fetchMarketItems(category?: ItemCategory): Promise<UserItem[]> {
+  const qs = category ? `?market=true&category=${category}` : "?market=true";
+  return (await get<{ items: UserItem[] }>(`/api/profile/items${qs}`)).items;
+}
+
+export async function createItem(body: {
+  userId: string; name: string; description?: string;
+  category: ItemCategory; price: number; tokenSymbol?: string;
+}): Promise<UserItem> {
+  return (await post<{ item: UserItem }>("/api/profile/items", body)).item;
+}
+
+export async function buyItem(itemId: string, buyerId: string, txHash?: string): Promise<UserItem> {
+  return (await post<{ item: UserItem }>("/api/profile/items", { action: "buy", itemId, buyerId, txHash })).item;
+}
+
+// ============ 任务 ============
+
+export async function fetchUserTasks(userId: string): Promise<UserTask[]> {
+  return (await get<{ tasks: UserTask[] }>(`/api/profile/tasks?userId=${userId}`)).tasks;
+}
+
+export async function fetchOpenTasks(): Promise<UserTask[]> {
+  return (await get<{ tasks: UserTask[] }>("/api/profile/tasks?open=true")).tasks;
+}
+
+export async function createTask(body: {
+  userId: string; title: string; description?: string;
+  reward: number; tokenSymbol?: string;
+}): Promise<UserTask> {
+  return (await post<{ task: UserTask }>("/api/profile/tasks", body)).task;
+}
+
+export async function updateTaskStatus(taskId: string, userId: string, status: TaskStatus, assigneeId?: string): Promise<void> {
+  await post("/api/profile/tasks", { action: "updateStatus", taskId, userId, status, assigneeId });
 }

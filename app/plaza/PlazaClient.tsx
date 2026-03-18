@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import type { PlazaUser, PlazaPostWithReactions, Zone, ReactionType } from "@/lib/types";
+import type { PlazaUser, PlazaPostWithReactions, City, ReactionType } from "@/lib/types";
 import { hashStr } from "@/lib/utils";
 import * as api from "@/lib/api";
 import { TILE, MAP_W, MAP_H, MAX_VISIBLE, GRID_COLS, GRID_ROWS, ZONE_ICONS } from "./constants";
@@ -29,7 +29,7 @@ export default function PlazaClient() {
   // 数据
   const [users, setUsers] = useState<PlazaUser[]>([]);
   const [posts, setPosts] = useState<PlazaPostWithReactions[]>([]);
-  const [zones, setZones] = useState<Zone[]>([]);
+  const [zones, setZones] = useState<City[]>([]);
   const [currentUser, setCurrentUser] = useState<PlazaUser | null>(null);
 
   // 地图
@@ -41,7 +41,7 @@ export default function PlazaClient() {
   // UI
   const [menuTab, setMenuTab] = useState<MenuTab>("map");
   const [hoveredUser, setHoveredUser] = useState<string | null>(null);
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
+  const [selectedZone, setSelectedZone] = useState<City | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showZoneModal, setShowZoneModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
@@ -67,6 +67,7 @@ export default function PlazaClient() {
         userNo: "", name: raw.name ?? raw.nickname ?? "匿名",
         occupation: null, description: null,
         avatarUrl: raw.avatarUrl ?? null, route: raw.route ?? null,
+        walletAddress: null, cityId: "xingluo",
         reputation: 0, coins: 0, joinedAt: "",
       };
       setCurrentUser(u);
@@ -103,7 +104,7 @@ export default function PlazaClient() {
   // ============ 位置计算 ============
 
   function getGridPos(index: number) {
-    const zone = zones.find((z) => z.id === "default") ?? zones[0];
+    const zone = zones.find((z) => z.id === "xingluo") ?? zones[0];
     if (!zone) return { x: 0, y: 0 };
     return {
       x: (zone.gridX + 0.8 + (index % GRID_COLS) * 1.2) * TILE,
@@ -112,7 +113,7 @@ export default function PlazaClient() {
   }
 
   function getSelfPos() {
-    const zone = zones.find((z) => z.id === "default") ?? zones[0];
+    const zone = zones.find((z) => z.id === "xingluo") ?? zones[0];
     if (!zone) return { x: 0, y: 0 };
     return {
       x: (zone.gridX + zone.gridW / 2 - 0.5) * TILE,
@@ -139,9 +140,9 @@ export default function PlazaClient() {
     fetchAll(currentUser.id);
   }
 
-  async function handleVote(zoneId: string, vote: "approve" | "reject") {
+  async function handleVote(cityId: string) {
     if (!currentUser) return;
-    await api.voteZone(zoneId, currentUser.id, vote);
+    await api.voteCity(cityId, currentUser.id);
     fetchAll(currentUser.id);
   }
 
@@ -195,7 +196,7 @@ export default function PlazaClient() {
                     <span style={{ fontSize: 28 }}>{ZONE_ICONS[zone.icon] ?? "🏠"}</span>
                     <span className="pixel-font" style={{ fontSize: 11, color: "#fff", textShadow: "1px 1px 0 #000" }}>{zone.name}</span>
                     {zone.status === "voting" && (
-                      <span style={{ fontSize: 10, color: "var(--pixel-gold)" }}>投票中 {zone.approveCount}票</span>
+                      <span style={{ fontSize: 10, color: "var(--pixel-gold)" }}>投票中 {zone.voteCount}/{zone.voteThreshold}</span>
                     )}
                   </div>
                 </div>

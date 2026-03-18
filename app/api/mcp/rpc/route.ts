@@ -5,9 +5,11 @@ import {
   getAllPosts,
   createPost,
   upsertPlazaUser,
+  searchUsers,
+  updateReputation,
 } from "@/lib/db";
 import { toggleReaction, getPostsReactions } from "@/lib/kv";
-import { getAllZones, proposeZone, voteForZone } from "@/lib/zones";
+import { getAllCities, proposeCity, voteCity } from "@/lib/cities";
 
 // ============ MCP Tool 定义 ============
 
@@ -84,7 +86,7 @@ const TOOLS = [
   },
   {
     name: "propose_zone",
-    description: "提议创建新区域，需要 10% 用户投票通过后才会出现在地图上",
+    description: "提议创建新城市，需要 10000 人投票支持才能建立",
     inputSchema: {
       type: "object",
       properties: {
@@ -96,14 +98,26 @@ const TOOLS = [
   },
   {
     name: "vote_zone",
-    description: "对投票中的区域投赞成或反对票",
+    description: "对投票中的城市投支持票",
     inputSchema: {
       type: "object",
       properties: {
-        zoneId: { type: "string", description: "区域 ID" },
-        vote: { type: "string", enum: ["approve", "reject"], description: "投票类型" },
+        zoneId: { type: "string", description: "城市 ID" },
       },
-      required: ["zoneId", "vote"],
+      required: ["zoneId"],
+    },
+  },
+  {
+    name: "search_users",
+    description: "搜索冒险者，按名字/职位精确搜索或按描述模糊搜索",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "按名字搜索" },
+        occupation: { type: "string", description: "按职位搜索" },
+        description: { type: "string", description: "按描述模糊搜索" },
+        limit: { type: "number", description: "返回数量，默认100，最大1000" },
+      },
     },
   },
 ];
@@ -217,7 +231,7 @@ const handlers: Record<string, ToolHandler> = {
   },
 
   list_zones: async () => {
-    const zones = await getAllZones();
+    const zones = await getAllCities();
     return {
       total: zones.length,
       zones: zones.map((z) => ({
@@ -225,8 +239,10 @@ const handlers: Record<string, ToolHandler> = {
         name: z.name,
         description: z.description,
         status: z.status,
-        approveCount: z.approveCount,
-        rejectCount: z.rejectCount,
+        voteCount: z.voteCount,
+        voteThreshold: z.voteThreshold,
+        population: z.population,
+        capacity: z.capacity,
       })),
     };
   },
@@ -234,7 +250,7 @@ const handlers: Record<string, ToolHandler> = {
   propose_zone: async (args, ctx) => {
     const name = args.name as string;
     if (!name?.trim()) return { error: "区域名称不能为空" };
-    const zone = await proposeZone({
+    const zone = await proposeCity({
       name: name.trim(),
       description: (args.description as string) ?? undefined,
       creatorId: ctx.userId,
@@ -249,18 +265,32 @@ const handlers: Record<string, ToolHandler> = {
 
   vote_zone: async (args, ctx) => {
     const zoneId = args.zoneId as string;
-    const vote = args.vote as "approve" | "reject";
-    if (!zoneId || !["approve", "reject"].includes(vote)) {
-      return { error: "参数错误" };
-    }
-    const { zone, activated } = await voteForZone(zoneId, ctx.userId, vote);
+    if (!zoneId) return { error: "缺少 zoneId" };
+    const { city, activated } = await voteCity(zoneId, ctx.userId);
     return {
-      message: activated ? "投票通过，区域已激活！" : `已投${vote === "approve" ? "赞成" : "反对"}票`,
-      zoneId: zone.id,
-      name: zone.name,
-      status: zone.status,
-      approveCount: zone.approveCount,
-      rejectCount: zone.rejectCount,
+      message: activated ? `城市「${city.name}」已通过投票，正式建立！` : "已投支持票",
+      cityId: city.id,
+      name: city.name,
+      status: city.status,
+      voteCount: city.voteCount,
+      voteThreshold: city.voteThreshold,
+    };
+  },
+
+  search_users: async (args) => {
+    const users = await searchUsers({
+      name: args.name as string | undefined,
+      occupation: args.occupation as string | undefined,
+      description: args.description as string | undefined,
+      limit: Math.min((args.limit as number) || 100, 1000),
+    });
+    return {
+      total: users.length,
+      users: users.map((u) => ({
+        userNo: u.userNo, name: u.name,
+        occupation: u.occupation, description: u.description,
+        reputation: u.reputation, coins: u.coins,
+      })),
     };
   },
 };

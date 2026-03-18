@@ -1,10 +1,10 @@
 "use client";
 
-import type { Zone } from "@/lib/types";
+import type { City } from "@/lib/types";
 import { MAP_W, MAP_H } from "../constants";
 
 interface Props {
-  zones: Zone[];
+  zones: City[];
 }
 
 export default function MiniMap({ zones }: Props) {

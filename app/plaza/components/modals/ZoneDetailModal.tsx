@@ -1,11 +1,11 @@
 "use client";
 
-import type { Zone } from "@/lib/types";
+import type { City } from "@/lib/types";
 import ModalOverlay from "./ModalOverlay";
 import { ZONE_ICONS } from "../../constants";
 
 interface Props {
-  zone: Zone;
+  zone: City;
   onClose: () => void;
 }
 
@@ -19,9 +19,14 @@ export default function ZoneDetailModal({ zone, onClose }: Props) {
           {zone.description && <div style={{ fontSize: 13, color: "var(--pixel-muted)", marginTop: 2 }}>{zone.description}</div>}
         </div>
       </div>
+      <div style={{ fontSize: 13, color: "var(--pixel-muted)", marginBottom: 4 }}>
+        银河坐标: ({zone.galaxyX.toFixed(1)}, {zone.galaxyY.toFixed(1)}, {zone.galaxyZ.toFixed(1)})
+      </div>
+      <div style={{ fontSize: 13, color: "var(--pixel-muted)", marginBottom: 4 }}>
+        人口: {zone.population.toLocaleString()} / {zone.capacity.toLocaleString()}
+      </div>
       <div style={{ fontSize: 13, color: "var(--pixel-muted)", marginBottom: 8 }}>
-        状态: {zone.status === "active" ? "已开放" : "投票中"}
-        {zone.status === "voting" && ` · 赞成 ${zone.approveCount} / 反对 ${zone.rejectCount}`}
+        状态: {zone.status === "active" ? "已开放" : `投票中 (${zone.voteCount}/${zone.voteThreshold})`}
       </div>
       <button className="pixel-btn" onClick={onClose}>关闭</button>
     </ModalOverlay>
