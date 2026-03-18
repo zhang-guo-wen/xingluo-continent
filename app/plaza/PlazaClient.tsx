@@ -243,7 +243,7 @@ export default function PlazaClient() {
       {menuTab === "members" && <MemberList users={users} />}
 
       {/* === 个人 === */}
-      {menuTab === "me" && currentUser && <ProfileView user={currentUser} />}
+      {menuTab === "me" && currentUser && <ProfileView user={currentUser} onUserUpdate={setCurrentUser} />}
 
       {/* === 底部菜单 === */}
       <GameMenu active={menuTab} onChange={setMenuTab} />

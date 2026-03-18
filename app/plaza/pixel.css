@@ -3,6 +3,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
 :root {
+  /* 主题色 */
   --pixel-bg: #1a1a2e;
   --pixel-panel: #16213e;
   --pixel-border: #0f3460;
@@ -13,6 +14,14 @@
   --pixel-text: #e0e0e0;
   --pixel-muted: #888;
   --pixel-shadow: #000;
+
+  /* 字号规范 */
+  --font-xs: 10px;    /* 标签、徽章 */
+  --font-sm: 12px;    /* 辅助文字 */
+  --font-base: 13px;  /* 正文 */
+  --font-md: 14px;    /* 强调正文、列表项 */
+  --font-lg: 16px;    /* 小标题 */
+  --font-xl: 20px;    /* 页面标题 */
 }
 
 .pixel-font {
