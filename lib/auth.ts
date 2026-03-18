@@ -1,17 +1,9 @@
 import { cookies } from "next/headers";
+import type { SecondMeUserInfo, TokenData } from "./types";
+
+export type { SecondMeUserInfo, TokenData };
 
 const API_BASE_URL = process.env.SECONDME_API_BASE_URL!;
-
-// ============ Agent（MCP）鉴权 ============
-
-export interface SecondMeUserInfo {
-  id: string;
-  name: string;
-  nickname?: string;
-  email?: string;
-  avatarUrl: string | null;
-  route: string | null;
-}
 
 /** 从 Request 的 Authorization header 提取 Bearer token */
 export function readBearerToken(request: Request): string | null {
@@ -55,12 +47,7 @@ export async function requireMcpAuth(
   return { accessToken, user };
 }
 
-export interface TokenData {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  expiresAt: number;
-}
+// ============ 浏览器用户 Cookie 鉴权 ============
 
 /** 从 cookie 读取 token */
 export async function getTokenFromCookie(): Promise<TokenData | null> {

@@ -1,0 +1,343 @@
+/* 像素游戏风格 */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+  --pixel-bg: #1a1a2e;
+  --pixel-panel: #16213e;
+  --pixel-border: #0f3460;
+  --pixel-accent: #e94560;
+  --pixel-green: #4a9c5d;
+  --pixel-blue: #6b8cff;
+  --pixel-gold: #f0c040;
+  --pixel-text: #e0e0e0;
+  --pixel-muted: #888;
+  --pixel-shadow: #000;
+}
+
+.pixel-font {
+  font-family: 'Press Start 2P', monospace;
+}
+
+.pixel-border {
+  box-shadow:
+    -2px 0 0 0 var(--pixel-border),
+    2px 0 0 0 var(--pixel-border),
+    0 -2px 0 0 var(--pixel-border),
+    0 2px 0 0 var(--pixel-border),
+    -2px -2px 0 0 var(--pixel-border),
+    2px -2px 0 0 var(--pixel-border),
+    -2px 2px 0 0 var(--pixel-border),
+    2px 2px 0 0 var(--pixel-border);
+}
+
+.pixel-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  padding: 10px 20px;
+  background: var(--pixel-panel);
+  color: var(--pixel-text);
+  border: none;
+  cursor: pointer;
+  image-rendering: pixelated;
+  box-shadow:
+    0 2px 0 0 #000,
+    inset 0 -2px 0 0 rgba(0,0,0,0.3),
+    inset 0 2px 0 0 rgba(255,255,255,0.1);
+  transition: transform 0.1s;
+}
+
+.pixel-btn:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 0 0 #000,
+    inset 0 -2px 0 0 rgba(0,0,0,0.3),
+    inset 0 2px 0 0 rgba(255,255,255,0.15);
+}
+
+.pixel-btn:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 0 0 0 #000,
+    inset 0 2px 0 0 rgba(0,0,0,0.3);
+}
+
+.pixel-btn-accent {
+  background: var(--pixel-accent);
+}
+
+.pixel-btn-green {
+  background: var(--pixel-green);
+}
+
+/* 像素化头像 */
+.pixel-avatar {
+  image-rendering: pixelated;
+  border: 2px solid var(--pixel-border);
+}
+
+/* 扫描线效果 */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+}
+
+/* 地图网格线 */
+.map-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* 地图区域方块 */
+.zone-block {
+  position: absolute;
+  border: 2px solid rgba(255,255,255,0.2);
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+
+.zone-block:hover {
+  border-color: rgba(255,255,255,0.5);
+}
+
+.zone-block.voting {
+  border-style: dashed;
+  opacity: 0.6;
+  animation: zone-pulse 2s ease-in-out infinite;
+}
+
+@keyframes zone-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* 用户方块 */
+.user-block {
+  position: absolute;
+  width: 56px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.user-block:hover {
+  transform: scale(1.15);
+  z-index: 20;
+}
+
+.user-block .avatar-box {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+.user-block .name-tag {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+
+.user-block .occ-tag {
+  font-size: 7px;
+  color: var(--pixel-gold);
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 用户详情气泡 */
+.user-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--pixel-panel);
+  color: var(--pixel-text);
+  padding: 10px 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 50;
+  margin-bottom: 4px;
+  box-shadow:
+    -2px 0 0 0 var(--pixel-border),
+    2px 0 0 0 var(--pixel-border),
+    0 -2px 0 0 var(--pixel-border),
+    0 2px 0 0 var(--pixel-border);
+}
+
+/* 底部游戏菜单 */
+.game-menu {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  background: var(--pixel-panel);
+  border-top: 2px solid var(--pixel-border);
+  z-index: 40;
+}
+
+.game-menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 18px;
+  cursor: pointer;
+  color: var(--pixel-muted);
+  transition: color 0.15s;
+  border: none;
+  background: none;
+}
+
+.game-menu-item:hover,
+.game-menu-item.active {
+  color: var(--pixel-gold);
+}
+
+.game-menu-item .icon {
+  font-size: 22px;
+}
+
+.game-menu-item .label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+}
+
+/* 右下角操作按钮 */
+.action-fab {
+  position: fixed;
+  bottom: 76px;
+  right: 16px;
+  width: 52px;
+  height: 52px;
+  background: var(--pixel-accent);
+  color: #fff;
+  border: none;
+  font-size: 26px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 41;
+  box-shadow: 0 2px 0 0 #000;
+  transition: transform 0.15s;
+}
+
+.action-fab:hover {
+  transform: translateY(-2px);
+}
+
+.action-popup {
+  position: fixed;
+  bottom: 136px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 41;
+}
+
+/* 小地图 */
+.minimap {
+  position: fixed;
+  bottom: 68px;
+  left: 8px;
+  width: 120px;
+  height: 90px;
+  background: rgba(0,0,0,0.7);
+  border: 2px solid var(--pixel-border);
+  z-index: 40;
+  overflow: hidden;
+}
+
+.minimap .viewport {
+  position: absolute;
+  border: 1px solid #fff;
+  pointer-events: none;
+}
+
+/* 弹窗 */
+.pixel-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.pixel-modal {
+  background: var(--pixel-panel);
+  padding: 24px;
+  max-width: 440px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow:
+    -3px 0 0 0 var(--pixel-border),
+    3px 0 0 0 var(--pixel-border),
+    0 -3px 0 0 var(--pixel-border),
+    0 3px 0 0 var(--pixel-border);
+}
+
+.pixel-input {
+  width: 100%;
+  padding: 10px;
+  background: var(--pixel-bg);
+  color: var(--pixel-text);
+  border: 2px solid var(--pixel-border);
+  font-size: 14px;
+  outline: none;
+}
+
+.pixel-input:focus {
+  border-color: var(--pixel-accent);
+}
+
+.pixel-textarea {
+  width: 100%;
+  padding: 10px;
+  background: var(--pixel-bg);
+  color: var(--pixel-text);
+  border: 2px solid var(--pixel-border);
+  font-size: 14px;
+  outline: none;
+  resize: none;
+}
+
+.pixel-textarea:focus {
+  border-color: var(--pixel-accent);
+}

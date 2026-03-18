@@ -1,269 +1,260 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import type { PlazaUser, PlazaPostWithReactions, Zone, ReactionType } from "@/lib/types";
+import { hashStr } from "@/lib/utils";
+import * as api from "@/lib/api";
+import { TILE, MAP_W, MAP_H, MAX_VISIBLE, GRID_COLS, GRID_ROWS, ZONE_ICONS } from "./constants";
 
-interface PlazaUser {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-  route: string | null;
-  joinedAt: string;
-}
+// 组件
+import GameMenu, { type MenuTab } from "./components/GameMenu";
+import ActionFab from "./components/ActionFab";
+import MiniMap from "./components/MiniMap";
+import UserSidebar from "./components/UserSidebar";
+import UserBlock from "./components/UserBlock";
+import NpcBlock from "./components/NpcBlock";
+import PostFeed from "./components/PostFeed";
+import MemberList from "./components/MemberList";
+import ProfileView from "./components/ProfileView";
 
-interface PlazaPost {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar: string | null;
-  content: string;
-  createdAt: string;
-}
+// 弹窗
+import PostModal from "./components/modals/PostModal";
+import ZoneModal from "./components/modals/ZoneModal";
+import VoteModal from "./components/modals/VoteModal";
+import ZoneDetailModal from "./components/modals/ZoneDetailModal";
+
+// ============ 主组件 ============
 
 export default function PlazaClient() {
+  // 数据
   const [users, setUsers] = useState<PlazaUser[]>([]);
-  const [posts, setPosts] = useState<PlazaPost[]>([]);
-  const [newPost, setNewPost] = useState("");
-  const [posting, setPosting] = useState(false);
+  const [posts, setPosts] = useState<PlazaPostWithReactions[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [currentUser, setCurrentUser] = useState<PlazaUser | null>(null);
-  const [tab, setTab] = useState<"posts" | "people">("posts");
 
-  const fetchData = useCallback(async () => {
-    const [usersRes, postsRes] = await Promise.all([
-      fetch("/api/plaza/users"),
-      fetch("/api/plaza/posts"),
+  // 地图
+  const [offset, setOffset] = useState({ x: -100, y: -50 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
+  const [visibleSeed, setVisibleSeed] = useState(0);
+
+  // UI
+  const [menuTab, setMenuTab] = useState<MenuTab>("map");
+  const [hoveredUser, setHoveredUser] = useState<string | null>(null);
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
+  const [showPostModal, setShowPostModal] = useState(false);
+  const [showZoneModal, setShowZoneModal] = useState(false);
+  const [showVoteModal, setShowVoteModal] = useState(false);
+
+  // ============ 数据加载 ============
+
+  const fetchAll = useCallback(async (userId?: string) => {
+    const [u, p, z] = await Promise.all([
+      api.fetchPlazaUsers(),
+      api.fetchPosts(userId),
+      api.fetchZones(),
     ]);
-    if (usersRes.ok) {
-      const d = await usersRes.json();
-      setUsers(d.users);
-    }
-    if (postsRes.ok) {
-      const d = await postsRes.json();
-      setPosts(d.posts);
-    }
+    setUsers(u);
+    setPosts(p);
+    setZones(z);
   }, []);
 
   useEffect(() => {
-    // 获取当前用户
-    fetch("/api/secondme/user")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.user) {
-          setCurrentUser({
-            id: d.user.id ?? d.user.email ?? "unknown",
-            name: d.user.name ?? d.user.nickname ?? "匿名",
-            avatarUrl: d.user.avatarUrl ?? null,
-            route: d.user.route ?? null,
-            joinedAt: "",
-          });
-        }
-      });
-    fetchData();
-  }, [fetchData]);
+    api.fetchCurrentUser().then((raw) => {
+      if (!raw) return;
+      const u: PlazaUser = {
+        id: raw.id ?? raw.email ?? "unknown",
+        userNo: "", name: raw.name ?? raw.nickname ?? "匿名",
+        occupation: null, description: null,
+        avatarUrl: raw.avatarUrl ?? null, route: raw.route ?? null,
+        reputation: 0, coins: 0, joinedAt: "",
+      };
+      setCurrentUser(u);
+      fetchAll(u.id);
+    });
+  }, [fetchAll]);
 
-  async function handlePost() {
-    if (!newPost.trim() || !currentUser) return;
-    setPosting(true);
-    try {
-      const res = await fetch("/api/plaza/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: currentUser.id,
-          userName: currentUser.name,
-          userAvatar: currentUser.avatarUrl,
-          content: newPost,
-        }),
-      });
-      if (res.ok) {
-        setNewPost("");
-        fetchData();
-      }
-    } finally {
-      setPosting(false);
-    }
+  // ============ 计算可见用户 ============
+
+  const otherUsers = users.filter((u) => u.id !== currentUser?.id);
+  const shuffled = [...otherUsers].sort(
+    (a, b) => hashStr(a.id + visibleSeed) - hashStr(b.id + visibleSeed)
+  );
+  const visibleOthers = shuffled.slice(0, MAX_VISIBLE);
+  const mapUsers = visibleOthers.slice(0, GRID_COLS * GRID_ROWS);
+  const votingZones = zones.filter((z) => z.status === "voting");
+
+  // ============ 地图拖拽 ============
+
+  function onPointerDown(e: React.PointerEvent) {
+    setDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
   }
 
-  function timeAgo(iso: string) {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "刚刚";
-    if (mins < 60) return `${mins} 分钟前`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours} 小时前`;
-    const days = Math.floor(hours / 24);
-    return `${days} 天前`;
+  function onPointerMove(e: React.PointerEvent) {
+    if (!dragging) return;
+    setOffset({
+      x: dragStart.current.ox + (e.clientX - dragStart.current.x),
+      y: dragStart.current.oy + (e.clientY - dragStart.current.y),
+    });
   }
+
+  // ============ 位置计算 ============
+
+  function getGridPos(index: number) {
+    const zone = zones.find((z) => z.id === "default") ?? zones[0];
+    if (!zone) return { x: 0, y: 0 };
+    return {
+      x: (zone.gridX + 0.8 + (index % GRID_COLS) * 1.2) * TILE,
+      y: (zone.gridY + 1.0 + Math.floor(index / GRID_COLS) * 1.0) * TILE,
+    };
+  }
+
+  function getSelfPos() {
+    const zone = zones.find((z) => z.id === "default") ?? zones[0];
+    if (!zone) return { x: 0, y: 0 };
+    return {
+      x: (zone.gridX + zone.gridW / 2 - 0.5) * TILE,
+      y: (zone.gridY + zone.gridH - 1.2) * TILE,
+    };
+  }
+
+  // ============ 操作回调 ============
+
+  async function handlePost(content: string) {
+    if (!currentUser) return;
+    await api.createPost({
+      userId: currentUser.id, userName: currentUser.name,
+      userAvatar: currentUser.avatarUrl, content,
+    });
+    setShowPostModal(false);
+    fetchAll(currentUser.id);
+  }
+
+  async function handleProposeZone(data: { name: string; description?: string; color: string; icon: string }) {
+    if (!currentUser) return;
+    await api.proposeZone({ ...data, creatorId: currentUser.id });
+    setShowZoneModal(false);
+    fetchAll(currentUser.id);
+  }
+
+  async function handleVote(zoneId: string, vote: "approve" | "reject") {
+    if (!currentUser) return;
+    await api.voteZone(zoneId, currentUser.id, vote);
+    fetchAll(currentUser.id);
+  }
+
+  async function handleReact(postId: string, action: ReactionType) {
+    if (!currentUser) return;
+    const data = await api.reactToPost(postId, currentUser.id, action);
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, likes: data.likes, dislikes: data.dislikes, userReaction: data.userReaction }
+          : p
+      )
+    );
+  }
+
+  // ============ 渲染 ============
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
-      {/* 顶部导航 */}
-      <nav className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">广场</h1>
-          <span className="rounded-full bg-green-100 px-3 py-0.5 text-xs font-medium text-green-700">
-            {users.length} 人在线
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <a
-            href="/dashboard"
-            className="text-sm text-slate-500 hover:text-slate-900"
+    <div className="fixed inset-0 overflow-hidden" style={{ background: "var(--pixel-bg)" }}>
+
+      {/* === 地图 === */}
+      {menuTab === "map" && (
+        <>
+          <div
+            className="absolute inset-0 map-grid scanlines"
+            style={{ cursor: dragging ? "grabbing" : "grab" }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={() => setDragging(false)}
           >
-            个人主页
-          </a>
-          <a
-            href="/api/auth/logout"
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
-          >
-            退出
-          </a>
-        </div>
-      </nav>
-
-      {/* 发帖区 */}
-      <div className="mb-6 rounded-2xl bg-white p-6 shadow-lg">
-        <div className="flex items-start gap-3">
-          {currentUser?.avatarUrl ? (
-            <img
-              src={currentUser.avatarUrl}
-              alt=""
-              className="h-10 w-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-500">
-              {currentUser?.name?.[0] ?? "?"}
-            </div>
-          )}
-          <div className="flex-1">
-            <textarea
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              placeholder="说点什么，让大家认识你..."
-              rows={3}
-              className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
-            />
-            <div className="mt-2 flex justify-end">
-              <button
-                onClick={handlePost}
-                disabled={posting || !newPost.trim()}
-                className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-40"
-              >
-                {posting ? "发布中..." : "发布"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab 切换 */}
-      <div className="mb-6 flex gap-1 rounded-xl bg-slate-200/60 p-1">
-        <button
-          onClick={() => setTab("posts")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-            tab === "posts"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          动态
-        </button>
-        <button
-          onClick={() => setTab("people")}
-          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
-            tab === "people"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          成员 ({users.length})
-        </button>
-      </div>
-
-      {/* 动态列表 */}
-      {tab === "posts" && (
-        <div className="space-y-4">
-          {posts.length === 0 ? (
-            <div className="rounded-2xl bg-white p-12 text-center shadow-lg">
-              <p className="text-lg text-slate-400">还没有动态</p>
-              <p className="mt-1 text-sm text-slate-400">
-                发第一条帖子，打破沉默
-              </p>
-            </div>
-          ) : (
-            posts.map((post) => (
-              <div
-                key={post.id}
-                className="rounded-2xl bg-white p-6 shadow-lg"
-              >
-                <div className="flex items-center gap-3">
-                  {post.userAvatar ? (
-                    <img
-                      src={post.userAvatar}
-                      alt=""
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-500">
-                      {post.userName?.[0] ?? "?"}
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold">{post.userName}</p>
-                    <p className="text-xs text-slate-400">
-                      {timeAgo(post.createdAt)}
-                    </p>
+            <div
+              style={{
+                transform: `translate(${offset.x}px, ${offset.y}px)`,
+                width: MAP_W * TILE, height: MAP_H * TILE,
+                position: "relative",
+              }}
+            >
+              {/* 区域 */}
+              {zones.map((zone) => (
+                <div
+                  key={zone.id}
+                  className={`zone-block ${zone.status === "voting" ? "voting" : ""}`}
+                  style={{
+                    left: zone.gridX * TILE, top: zone.gridY * TILE,
+                    width: zone.gridW * TILE, height: zone.gridH * TILE,
+                    background: zone.color + "40",
+                  }}
+                  onClick={() => { if (!dragging) setSelectedZone(zone); }}
+                >
+                  <div className="flex flex-col items-center justify-center h-full gap-1">
+                    <span style={{ fontSize: 28 }}>{ZONE_ICONS[zone.icon] ?? "🏠"}</span>
+                    <span className="pixel-font" style={{ fontSize: 11, color: "#fff", textShadow: "1px 1px 0 #000" }}>{zone.name}</span>
+                    {zone.status === "voting" && (
+                      <span style={{ fontSize: 10, color: "var(--pixel-gold)" }}>投票中 {zone.approveCount}票</span>
+                    )}
                   </div>
                 </div>
-                <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-                  {post.content}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
+              ))}
+
+              {/* NPC */}
+              <NpcBlock onInteract={() => setShowZoneModal(true)} />
+
+              {/* 其他用户 4x4 */}
+              {mapUsers.map((user, i) => {
+                const pos = getGridPos(i);
+                return (
+                  <UserBlock key={user.id} user={user} x={pos.x} y={pos.y}
+                    hovered={hoveredUser === user.id} onHover={setHoveredUser} />
+                );
+              })}
+
+              {/* 自己 */}
+              {currentUser && (() => {
+                const pos = getSelfPos();
+                return (
+                  <UserBlock user={currentUser} x={pos.x} y={pos.y}
+                    hovered={hoveredUser === currentUser.id} highlight onHover={setHoveredUser} />
+                );
+              })()}
+            </div>
+          </div>
+
+          <UserSidebar
+            users={visibleOthers}
+            totalCount={otherUsers.length}
+            hoveredUser={hoveredUser}
+            onHover={setHoveredUser}
+            onRefresh={() => setVisibleSeed((s) => s + 1)}
+          />
+          <MiniMap zones={zones} />
+        </>
       )}
 
-      {/* 成员列表 */}
-      {tab === "people" && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {users.map((user) => (
-            <div
-              key={user.id}
-              className="flex items-center gap-4 rounded-2xl bg-white p-5 shadow-lg"
-            >
-              {user.avatarUrl ? (
-                <img
-                  src={user.avatarUrl}
-                  alt=""
-                  className="h-14 w-14 rounded-full object-cover ring-2 ring-slate-100"
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-200 text-lg font-bold text-slate-500">
-                  {user.name?.[0] ?? "?"}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{user.name}</p>
-                {user.route ? (
-                  <a
-                    href={`https://second-me.cn/${user.route}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    second-me.cn/{user.route}
-                  </a>
-                ) : (
-                  <p className="text-xs text-slate-400">SecondMe 用户</p>
-                )}
-                <p className="mt-0.5 text-xs text-slate-400">
-                  {timeAgo(user.joinedAt)} 加入
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </main>
+      {/* === 动态 === */}
+      {menuTab === "posts" && <PostFeed posts={posts} onReact={handleReact} />}
+
+      {/* === 成员 === */}
+      {menuTab === "members" && <MemberList users={users} />}
+
+      {/* === 个人 === */}
+      {menuTab === "me" && currentUser && <ProfileView user={currentUser} />}
+
+      {/* === 底部菜单 === */}
+      <GameMenu active={menuTab} onChange={setMenuTab} />
+
+      {/* === FAB === */}
+      <ActionFab votingCount={votingZones.length} onPost={() => setShowPostModal(true)} onVote={() => setShowVoteModal(true)} />
+
+      {/* === 弹窗 === */}
+      {showPostModal && <PostModal onSubmit={handlePost} onClose={() => setShowPostModal(false)} />}
+      {showZoneModal && <ZoneModal onSubmit={handleProposeZone} onClose={() => setShowZoneModal(false)} />}
+      {showVoteModal && <VoteModal zones={votingZones} onVote={handleVote} onClose={() => setShowVoteModal(false)} />}
+      {selectedZone && <ZoneDetailModal zone={selectedZone} onClose={() => setSelectedZone(null)} />}
+    </div>
   );
 }

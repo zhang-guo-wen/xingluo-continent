@@ -7,5 +7,5 @@ export async function GET() {
   if (!token) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json({ users: getAllPlazaUsers() });
+  return NextResponse.json({ users: await getAllPlazaUsers() });
 }

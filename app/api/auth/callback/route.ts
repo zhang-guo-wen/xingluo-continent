@@ -49,9 +49,11 @@ export async function GET(request: NextRequest) {
       const userResult = await userRes.json();
       if (userResult.code === 0 && userResult.data) {
         const u = userResult.data;
-        upsertPlazaUser({
+        await upsertPlazaUser({
           id: u.id ?? u.email ?? accessToken.slice(-12),
           name: u.name ?? u.nickname ?? "匿名用户",
+          occupation: null,
+          description: null,
           avatarUrl: u.avatarUrl ?? null,
           route: u.route ?? null,
           joinedAt: new Date().toISOString(),

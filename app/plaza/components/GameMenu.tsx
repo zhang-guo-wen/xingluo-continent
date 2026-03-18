@@ -1,0 +1,32 @@
+"use client";
+
+export type MenuTab = "map" | "posts" | "members" | "me";
+
+const TABS: { key: MenuTab; icon: string; label: string }[] = [
+  { key: "map", icon: "🗺️", label: "地图" },
+  { key: "posts", icon: "📜", label: "动态" },
+  { key: "members", icon: "👥", label: "成员" },
+  { key: "me", icon: "👤", label: "我" },
+];
+
+interface Props {
+  active: MenuTab;
+  onChange: (tab: MenuTab) => void;
+}
+
+export default function GameMenu({ active, onChange }: Props) {
+  return (
+    <div className="game-menu">
+      {TABS.map((t) => (
+        <button
+          key={t.key}
+          className={`game-menu-item ${active === t.key ? "active" : ""}`}
+          onClick={() => onChange(t.key)}
+        >
+          <span className="icon">{t.icon}</span>
+          <span className="label">{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
