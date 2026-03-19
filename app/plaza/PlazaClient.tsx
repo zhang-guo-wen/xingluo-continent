@@ -8,7 +8,7 @@ import { MAX_USERS } from "./constants";
 
 import GameMenu, { type MenuTab } from "./components/GameMenu";
 import MapGrid from "./components/MapGrid";
-import CityMapView from "./components/CityMapView";
+import WorldCanvas from "./components/WorldCanvas";
 import UserSidebar from "./components/UserSidebar";
 import UserDetailPanel from "./components/UserDetailPanel";
 import PostFeed from "./components/PostFeed";
@@ -30,10 +30,7 @@ export default function PlazaClient() {
   const [visibleSeed, setVisibleSeed] = useState(0);
   const [selectedUser, setSelectedUser] = useState<PlazaUser | null>(null);
 
-  // 地图双层：area=区域(人), cities=城市列表
-  const [mapLayer, setMapLayer] = useState<"area" | "cities">("area");
-
-  const [menuTab, setMenuTab] = useState<MenuTab>("map");
+  const [menuTab, setMenuTab] = useState<MenuTab>("camp");
   const [selectedZone, setSelectedZone] = useState<City | null>(null);
   const [showZoneModal, setShowZoneModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
@@ -110,23 +107,13 @@ export default function PlazaClient() {
     );
   }
 
-  function handleMapTabClick() {
-    if (menuTab === "map") {
-      // 已在地图页，切换 area ↔ cities
-      setMapLayer((l) => l === "area" ? "cities" : "area");
-      setSelectedUser(null);
-    } else {
-      setMenuTab("map");
-    }
-  }
-
   // ============ 渲染 ============
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: "var(--pixel-bg)" }}>
 
-      {/* === 地图：区域层 === */}
-      {menuTab === "map" && mapLayer === "area" && (
+      {/* === 营地：冒险者区域 === */}
+      {menuTab === "camp" && (
         <>
           <UserSidebar
             users={visibleOthers}
@@ -145,24 +132,15 @@ export default function PlazaClient() {
               display: "flex", flexDirection: "column",
             }}
           >
-            {/* 区域标题栏 */}
             <div className="text-center py-2 shrink-0">
               <span className="pixel-font" style={{ fontSize: 12, color: "var(--pixel-gold)" }}>
-                🏰 星罗城
+                ⛺ 星罗城 · 营地
               </span>
               <span style={{ fontSize: 10, color: "var(--pixel-muted)", marginLeft: 8 }}>
-                {allVisible.length}/{MAX_USERS}
+                {allVisible.length} 冒险者
               </span>
-              <button
-                onClick={() => setMapLayer("cities")}
-                style={{ marginLeft: 12, background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "var(--pixel-blue)" }}
-              >
-                🌌 查看所有城市 →
-              </button>
             </div>
-
-            {/* 地图网格，填满剩余空间 */}
-            <div className="flex-1 p-2" style={{ overflow: "hidden" }}>
+            <div className="flex-1 p-1" style={{ overflow: "hidden" }}>
               <MapGrid
                 users={allVisible}
                 currentUser={currentUser}
@@ -178,47 +156,27 @@ export default function PlazaClient() {
         </>
       )}
 
-      {/* === 地图：城市层 === */}
-      {menuTab === "map" && mapLayer === "cities" && (
-        <>
-          <CityMapView
-            cities={zones}
-            onSelectCity={(city) => {
-              if (city.status === "active") {
-                setSelectedZone(city);
-              } else {
-                setShowVoteModal(true);
-              }
-            }}
-            onPropose={() => setShowZoneModal(true)}
-          />
-          <button
-            onClick={() => setMapLayer("area")}
-            className="fixed top-3 left-3 z-50 pixel-btn"
-            style={{ fontSize: 10 }}
-          >
-            ← 返回区域
-          </button>
-        </>
+      {/* === 世界：城市画布 === */}
+      {menuTab === "world" && (
+        <WorldCanvas
+          cities={zones}
+          onSelectCity={(city) => {
+            if (city.status === "voting") setShowVoteModal(true);
+            else setSelectedZone(city);
+          }}
+          onPropose={() => setShowZoneModal(true)}
+        />
       )}
 
-      {/* === 动态（内嵌发帖） === */}
-      {menuTab === "posts" && (
-        <PostFeed posts={posts} onReact={handleReact} onPost={handlePost} />
-      )}
-
+      {/* === 其他 tab === */}
+      {menuTab === "posts" && <PostFeed posts={posts} onReact={handleReact} onPost={handlePost} />}
       {menuTab === "market" && <MarketView currentUserId={currentUser?.id} onBuy={() => fetchAll(currentUser?.id)} />}
       {menuTab === "search" && <UserSearchPanel />}
       {menuTab === "rank" && <LeaderboardView currentUserId={currentUser?.id} />}
       {menuTab === "me" && currentUser && <ProfileView user={currentUser} onUserUpdate={setCurrentUser} />}
 
       {/* === 底部菜单 === */}
-      <GameMenu active={menuTab} onChange={(t) => {
-        if (t === "map") { handleMapTabClick(); return; }
-        setMenuTab(t);
-        setSelectedUser(null);
-        setMapLayer("area");
-      }} />
+      <GameMenu active={menuTab} onChange={(t) => { setMenuTab(t); setSelectedUser(null); }} />
 
       {/* === 弹窗 === */}
       {showZoneModal && <ZoneModal onSubmit={handleProposeZone} onClose={() => setShowZoneModal(false)} />}

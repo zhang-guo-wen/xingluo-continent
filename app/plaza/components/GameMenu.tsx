@@ -1,9 +1,10 @@
 "use client";
 
-export type MenuTab = "map" | "posts" | "market" | "search" | "rank" | "me";
+export type MenuTab = "camp" | "world" | "posts" | "market" | "search" | "rank" | "me";
 
 const TABS: { key: MenuTab; icon: string; label: string }[] = [
-  { key: "map", icon: "🗺️", label: "地图" },
+  { key: "camp", icon: "⛺", label: "营地" },
+  { key: "world", icon: "🌌", label: "世界" },
   { key: "posts", icon: "📜", label: "动态" },
   { key: "market", icon: "🏪", label: "市场" },
   { key: "search", icon: "🔍", label: "搜索" },
