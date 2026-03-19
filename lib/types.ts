@@ -273,6 +273,25 @@ export interface EventComment {
   createdAt: string;
 }
 
+// ============ 帖子评论 ============
+
+export type PostCommentType = "comment" | "appeal";
+
+export interface PostComment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  type: PostCommentType;       // comment=普通评论, appeal=审议投票
+  content: string;
+  // appeal 专用
+  appealAction: "like" | "dislike" | null;
+  supportCount: number;
+  opposeCount: number;
+  appealStatus: "pending" | "approved" | "rejected" | null;
+  createdAt: string;
+}
+
 // ============ 信誉审议（信誉为 0 时的投票请求） ============
 
 export interface ReputationAppeal {

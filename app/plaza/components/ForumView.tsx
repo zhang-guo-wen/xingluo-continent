@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import type { PlazaPostWithReactions, ReactionType, PostTag } from "@/lib/types";
+import type { PlazaPostWithReactions, ReactionType, PostTag, PostComment } from "@/lib/types";
 import { timeAgo, stringToColor } from "@/lib/utils";
 import * as api from "@/lib/api";
 import ModalOverlay from "./modals/ModalOverlay";
@@ -35,6 +35,8 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
   const [posts, setPosts] = useState<PlazaPostWithReactions[]>([]);
   const [filter, setFilter] = useState<"all" | "camps" | "friends">("all");
   const [viewingPost, setViewingPost] = useState<PlazaPostWithReactions | null>(null);
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [newComment, setNewComment] = useState("");
   const [showCompose, setShowCompose] = useState(false);
   // 信誉审议弹窗
   const [appealTarget, setAppealTarget] = useState<{ postId: string; action: ReactionType } | null>(null);
@@ -101,17 +103,38 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
     if (viewingPost?.id === postId) setViewingPost((v) => v ? upd([v])[0] : null);
   }
 
+  async function openPostDetail(post: PlazaPostWithReactions) {
+    setViewingPost(post);
+    api.fetchPostComments(post.id).then(setComments).catch(() => setComments([]));
+  }
+
+  async function handleAddComment() {
+    if (!viewingPost || !newComment.trim()) return;
+    const c = await api.addPostComment(viewingPost.id, currentUserId, currentUserName, newComment.trim());
+    setComments((prev) => [...prev, c]);
+    setNewComment("");
+  }
+
+  async function handleVoteAppealComment(commentId: string, vote: "support" | "oppose") {
+    if (!viewingPost) return;
+    const { comment } = await api.voteAppealComment(viewingPost.id, commentId, currentUserId, vote);
+    setComments((prev) => prev.map((c) => c.id === commentId ? comment : c));
+  }
+
   async function submitAppeal() {
     if (!appealTarget || !appealReason.trim()) return;
     setAppealSubmitting(true);
     try {
-      await api.createAppeal({
-        userId: currentUserId, userName: currentUserName,
-        targetPostId: appealTarget.postId, action: appealTarget.action,
-        reason: appealReason.trim(),
-      });
+      const c = await api.addAppealComment(
+        appealTarget.postId, currentUserId, currentUserName,
+        appealTarget.action, appealReason.trim()
+      );
+      // 如果当前正在查看这个帖子，更新评论
+      if (viewingPost?.id === appealTarget.postId) {
+        setComments((prev) => [...prev, c]);
+      }
       setAppealTarget(null);
-      alert("审议已提交，等待其他冒险者投票");
+      alert("审议已发起，在评论区等待其他冒险者投票");
     } finally {
       setAppealSubmitting(false);
     }
@@ -146,7 +169,7 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
         ) : (
           posts.map((post) => (
             <div key={post.id} className="pixel-border p-3 cursor-pointer" style={{ background: "var(--pixel-panel)" }}
-              onClick={() => setViewingPost(post)}>
+              onClick={() => openPostDetail(post)}>
               <div className="flex items-center gap-2 mb-1">
                 {/* 标签 */}
                 {post.tag && (
@@ -218,6 +241,68 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
               <button onClick={() => react(viewingPost.id, "dislike")}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: viewingPost.userReaction === "dislike" ? "var(--pixel-accent)" : "var(--pixel-muted)" }}>
                 👎 {viewingPost.dislikes || 0}</button>
+            </div>
+
+            {/* 评论区 */}
+            <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--pixel-border)" }}>
+              <div style={{ fontSize: 13, color: "var(--pixel-gold)", marginBottom: 8 }}>评论 ({comments.length})</div>
+
+              {comments.map((c) => (
+                <div key={c.id} className="mb-2 pl-2" style={{ borderLeft: c.type === "appeal" ? "3px solid var(--pixel-accent)" : "2px solid var(--pixel-border)" }}>
+                  {c.type === "appeal" ? (
+                    // 审议评论
+                    <div className="p-2" style={{ background: "rgba(233,69,96,0.1)" }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span style={{ fontSize: 9, padding: "1px 6px", background: "var(--pixel-accent)", color: "#fff" }}>🗳️ 审议</span>
+                        <span style={{ fontSize: 11, color: "var(--pixel-gold)" }}>{c.userName}</span>
+                        <span style={{ fontSize: 10, color: "var(--pixel-muted)" }}>
+                          想要{c.appealAction === "like" ? "👍点赞" : "👎点踩"}
+                        </span>
+                        <span style={{ fontSize: 9, color: "var(--pixel-muted)", marginLeft: "auto" }}>{timeAgo(c.createdAt)}</span>
+                      </div>
+                      <div style={{ fontSize: 12, marginBottom: 4 }}>{c.content}</div>
+                      <div className="flex items-center gap-2" style={{ fontSize: 11 }}>
+                        {c.appealStatus === "pending" ? (
+                          <>
+                            <button onClick={() => handleVoteAppealComment(c.id, "support")}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pixel-green)" }}>
+                              ✅ 支持 ({c.supportCount})
+                            </button>
+                            <button onClick={() => handleVoteAppealComment(c.id, "oppose")}
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--pixel-accent)" }}>
+                              ❌ 反对 ({c.opposeCount})
+                            </button>
+                            <span style={{ fontSize: 9, color: "var(--pixel-muted)", marginLeft: "auto" }}>需 3 票通过</span>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 10, color: c.appealStatus === "approved" ? "var(--pixel-green)" : "var(--pixel-accent)" }}>
+                            {c.appealStatus === "approved" ? "✅ 审议通过" : "❌ 审议被拒"}
+                            （支持{c.supportCount} / 反对{c.opposeCount}）
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // 普通评论
+                    <div className="p-1">
+                      <span style={{ fontSize: 11, color: "var(--pixel-gold)" }}>{c.userName}</span>
+                      <span style={{ fontSize: 12, color: "var(--pixel-text)", marginLeft: 6 }}>{c.content}</span>
+                      <span style={{ fontSize: 9, color: "var(--pixel-muted)", marginLeft: 6 }}>{timeAgo(c.createdAt)}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* 写评论 */}
+              <div className="flex gap-1 mt-2">
+                <input className="pixel-input flex-1" style={{ fontSize: 12, padding: "4px 8px" }}
+                  placeholder="写评论..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddComment()} />
+                <button className="pixel-btn pixel-btn-accent" style={{ fontSize: 10, padding: "4px 10px" }}
+                  onClick={handleAddComment}>发送</button>
+              </div>
             </div>
           </div>
         </ModalOverlay>

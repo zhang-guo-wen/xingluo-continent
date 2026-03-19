@@ -5,7 +5,7 @@ import type {
   UserSkill, UserItem, UserTask, ItemCategory, TaskStatus, UserSearchParams,
   Transaction, CheckinResult, LeaderboardType,
   UserEvent, EventComment,
-  Camp, CampVisibility, CampFollow, UserFriend, ReputationAppeal,
+  Camp, CampVisibility, CampFollow, UserFriend, ReputationAppeal, PostComment,
 } from "./types";
 
 // ============ 通用 ============
@@ -91,6 +91,22 @@ export async function createPost(body: {
 
 export async function reactToPost(postId: string, userId: string, action: ReactionType): Promise<PostReactions> {
   return post<PostReactions>(`/api/plaza/posts/${postId}/react`, { userId, action });
+}
+
+export async function fetchPostComments(postId: string): Promise<PostComment[]> {
+  return (await get<{ comments: PostComment[] }>(`/api/plaza/posts/${postId}/comments`)).comments;
+}
+
+export async function addPostComment(postId: string, userId: string, userName: string, content: string): Promise<PostComment> {
+  return (await post<{ comment: PostComment }>(`/api/plaza/posts/${postId}/comments`, { userId, userName, content })).comment;
+}
+
+export async function addAppealComment(postId: string, userId: string, userName: string, appealAction: "like" | "dislike", reason: string): Promise<PostComment> {
+  return (await post<{ comment: PostComment }>(`/api/plaza/posts/${postId}/comments`, { type: "appeal", userId, userName, appealAction, reason })).comment;
+}
+
+export async function voteAppealComment(postId: string, commentId: string, userId: string, vote: "support" | "oppose") {
+  return post<{ comment: PostComment }>(`/api/plaza/posts/${postId}/comments`, { action: "vote_appeal", commentId, userId, vote });
 }
 
 // ============ 城市 ============
