@@ -30,13 +30,14 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { userId, userName, userAvatar, campId, content } = body;
+  const { userId, userName, userAvatar, campId, tag, content } = body;
 
   if (!content?.trim()) return NextResponse.json({ error: "内容不能为空" }, { status: 400 });
 
   const post = await createPost({
     userId, userName, userAvatar,
     campId: campId ?? null,
+    tag: tag ?? null,
     content: content.trim(),
   });
 

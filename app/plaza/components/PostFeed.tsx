@@ -46,6 +46,7 @@ export default function PostFeed({ posts, onReact, onPost, campId }: Props) {
         byId.set(id, {
           ...gp,
           userAvatar: gp.userAvatar,
+          tag: null,
           images: [],
           likes: 0, dislikes: 0, userReaction: null,
         });

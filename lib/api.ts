@@ -84,7 +84,7 @@ export async function fetchPosts(userId?: string, campId?: string): Promise<Plaz
 }
 
 export async function createPost(body: {
-  userId: string; userName: string; userAvatar: string | null; campId?: string; content: string;
+  userId: string; userName: string; userAvatar: string | null; campId?: string; tag?: string; content: string;
 }) {
   return post<{ post: PlazaPostWithReactions }>("/api/plaza/posts", body);
 }
@@ -173,8 +173,9 @@ export async function updateTaskStatus(taskId: string, userId: string, status: T
 
 // ============ 论坛（聚合 feed） ============
 
-export async function fetchForumPosts(userId: string): Promise<PlazaPostWithReactions[]> {
-  return (await get<{ posts: PlazaPostWithReactions[] }>(`/api/forum?userId=${userId}`)).posts;
+export async function fetchForumPosts(userId: string, filter?: "all" | "camps" | "friends"): Promise<PlazaPostWithReactions[]> {
+  const f = filter ? `&filter=${filter}` : "";
+  return (await get<{ posts: PlazaPostWithReactions[] }>(`/api/forum?userId=${userId}${f}`)).posts;
 }
 
 /** 上传图片，返回 URL */

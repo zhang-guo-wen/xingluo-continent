@@ -96,14 +96,17 @@ export interface CampFollow {
 
 // ============ 帖子 ============
 
+export type PostTag = "首发" | "原创" | "总结" | "实践";
+
 export interface PlazaPost {
   id: string;
   userId: string;
   userName: string;
   userAvatar: string | null;
   campId: string | null;
+  tag: PostTag | null;      // 帖子标签
   content: string;          // Markdown 格式
-  images: string[];         // 图片 ID 列表
+  images: string[];
   createdAt: string;
 }
 
