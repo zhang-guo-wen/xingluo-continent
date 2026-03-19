@@ -85,6 +85,7 @@ export interface PlazaPost {
   userId: string;
   userName: string;
   userAvatar: string | null;
+  campId: string | null;    // 发帖所在营地
   content: string;
   createdAt: string;
 }

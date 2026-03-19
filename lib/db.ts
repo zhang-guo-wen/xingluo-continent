@@ -41,10 +41,12 @@ async function ensureSchema() {
       user_id TEXT NOT NULL,
       user_name TEXT NOT NULL,
       user_avatar TEXT,
+      camp_id TEXT,
       content TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS camp_id TEXT`.catch(() => {});
   schemaReady = true;
 }
 
@@ -258,8 +260,8 @@ export async function createPost(post: Omit<PlazaPost, "id" | "createdAt">): Pro
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
-    await sql`INSERT INTO plaza_posts (id, user_id, user_name, user_avatar, content, created_at)
-      VALUES (${id}, ${post.userId}, ${post.userName}, ${post.userAvatar}, ${post.content}, ${createdAt})`;
+    await sql`INSERT INTO plaza_posts (id, user_id, user_name, user_avatar, camp_id, content, created_at)
+      VALUES (${id}, ${post.userId}, ${post.userName}, ${post.userAvatar}, ${post.campId ?? null}, ${post.content}, ${createdAt})`;
     return { ...post, id, createdAt };
   }
   const posts = readJson<PlazaPost[]>(POSTS_FILE, []);
@@ -273,23 +275,37 @@ export async function getAllPosts(): Promise<PlazaPost[]> {
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
-    const rows = await sql`SELECT id, user_id, user_name, user_avatar, content, created_at FROM plaza_posts ORDER BY created_at DESC`;
+    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, content, created_at FROM plaza_posts ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, content: r.content, createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, content: r.content, createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []);
+}
+
+/** 查某个营地的帖子（闲逛者查看用） */
+export async function getCampPosts(campId: string): Promise<PlazaPost[]> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, content, created_at FROM plaza_posts WHERE camp_id = ${campId} ORDER BY created_at DESC`;
+    return rows.map((r) => ({
+      id: r.id, userId: r.user_id, userName: r.user_name,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, content: r.content, createdAt: r.created_at,
+    }));
+  }
+  return readJson<PlazaPost[]>(POSTS_FILE, []).filter((p) => p.campId === campId);
 }
 
 export async function getUserPosts(userId: string): Promise<PlazaPost[]> {
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
-    const rows = await sql`SELECT id, user_id, user_name, user_avatar, content, created_at FROM plaza_posts WHERE user_id = ${userId} ORDER BY created_at DESC`;
+    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, content, created_at FROM plaza_posts WHERE user_id = ${userId} ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, content: r.content, createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, content: r.content, createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []).filter((p) => p.userId === userId);

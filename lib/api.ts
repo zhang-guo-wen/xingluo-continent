@@ -75,13 +75,16 @@ export async function updateProfile(userId: string, data: {
 
 // ============ 帖子 ============
 
-export async function fetchPosts(userId?: string): Promise<PlazaPostWithReactions[]> {
-  const qs = userId ? `?userId=${userId}` : "";
-  return (await get<{ posts: PlazaPostWithReactions[] }>(`/api/plaza/posts${qs}`)).posts;
+export async function fetchPosts(userId?: string, campId?: string): Promise<PlazaPostWithReactions[]> {
+  const params = new URLSearchParams();
+  if (userId) params.set("userId", userId);
+  if (campId) params.set("campId", campId);
+  const qs = params.toString();
+  return (await get<{ posts: PlazaPostWithReactions[] }>(`/api/plaza/posts${qs ? `?${qs}` : ""}`)).posts;
 }
 
 export async function createPost(body: {
-  userId: string; userName: string; userAvatar: string | null; content: string;
+  userId: string; userName: string; userAvatar: string | null; campId?: string; content: string;
 }) {
   return post<{ post: PlazaPostWithReactions }>("/api/plaza/posts", body);
 }

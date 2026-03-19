@@ -97,7 +97,7 @@ export default function PlazaClient() {
 
   async function handlePost(content: string) {
     if (!currentUser) return;
-    const { post } = await api.createPost({ userId: currentUser.id, userName: currentUser.name, userAvatar: currentUser.avatarUrl, content });
+    const { post } = await api.createPost({ userId: currentUser.id, userName: currentUser.name, userAvatar: currentUser.avatarUrl, campId: myCampId, content });
     // 同时广播到 Gun P2P 网络（营地频道 + 城市频道）
     gunPublishPost({
       id: post.id, userId: post.userId, userName: post.userName,

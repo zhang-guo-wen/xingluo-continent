@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAccessToken } from "@/lib/auth";
-import { createPost, getAllPosts } from "@/lib/db";
+import { createPost, getAllPosts, getCampPosts } from "@/lib/db";
 import { getPostsReactions } from "@/lib/kv";
 
 export async function GET(request: NextRequest) {
   const token = await getValidAccessToken();
-  if (!token) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  if (!token) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const userId = request.nextUrl.searchParams.get("userId") ?? undefined;
-  const posts = await getAllPosts();
+  const campId = request.nextUrl.searchParams.get("campId") ?? undefined;
+
+  // 按营地查帖子（闲逛者用），否则查全部
+  const posts = campId ? await getCampPosts(campId) : await getAllPosts();
   const postIds = posts.map((p) => p.id);
   const reactions = await getPostsReactions(postIds, userId);
 
@@ -26,21 +27,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const token = await getValidAccessToken();
-  if (!token) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  if (!token) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { userId, userName, userAvatar, content } = body;
+  const { userId, userName, userAvatar, campId, content } = body;
 
-  if (!content?.trim()) {
-    return NextResponse.json({ error: "内容不能为空" }, { status: 400 });
-  }
+  if (!content?.trim()) return NextResponse.json({ error: "内容不能为空" }, { status: 400 });
 
   const post = await createPost({
-    userId,
-    userName,
-    userAvatar,
+    userId, userName, userAvatar,
+    campId: campId ?? null,
     content: content.trim(),
   });
 
