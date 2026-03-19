@@ -69,7 +69,7 @@ export async function searchUsers(params: UserSearchParams): Promise<PlazaUser[]
 export async function updateProfile(userId: string, data: {
   name?: string; occupation?: string; description?: string; walletAddress?: string;
 }): Promise<PlazaUser> {
-  return (await put<{ user: PlazaUser }>("/api/profile", { userId, ...data })).user;
+  return (await put<{ user: PlazaUser }>("/api/profile/update", { userId, ...data })).user;
 }
 
 // ============ 帖子 ============
