@@ -8,12 +8,41 @@ export interface PlazaUser {
   description: string | null;
   avatarUrl: string | null;
   route: string | null;
-  walletAddress: string | null; // Web3 钱包地址
+  walletAddress: string | null;
   cityId: string;           // 所属城市
+  campId: string | null;    // 所属营地 ID（null=未分配）
+  isOnline: boolean;        // 是否在线
+  lastSeenAt: string | null; // 最后在线时间
   reputation: number;
   coins: number;
-  compute: number;          // 算力
+  compute: number;
   joinedAt: string;
+}
+
+// ============ 营地 ============
+
+export type CampVisibility = "public" | "private";
+
+export interface Camp {
+  id: string;
+  name: string;
+  description: string | null;
+  visibility: CampVisibility;  // public=公开, private=私人（需申请）
+  ownerId: string;
+  ownerName: string;
+  capacity: number;            // 默认 256
+  memberCount: number;
+  cityId: string;
+  createdAt: string;
+}
+
+export interface CampJoinRequest {
+  id: string;
+  campId: string;
+  userId: string;
+  userName: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
 }
 
 // ============ 城市 ============

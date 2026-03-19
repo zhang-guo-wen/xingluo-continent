@@ -5,6 +5,7 @@ import type {
   UserSkill, UserItem, UserTask, ItemCategory, TaskStatus, UserSearchParams,
   Transaction, CheckinResult, LeaderboardType,
   UserEvent, EventComment,
+  Camp, CampVisibility,
 } from "./types";
 
 // ============ 通用 ============
@@ -207,4 +208,22 @@ export async function fetchEventComments(eventId: string): Promise<EventComment[
 
 export async function addEventComment(eventId: string, userId: string, userName: string, content: string): Promise<EventComment> {
   return (await post<{ comment: EventComment }>(`/api/events/${eventId}/comments`, { userId, userName, content })).comment;
+}
+
+// ============ 营地 ============
+
+export async function fetchCamps(cityId?: string): Promise<Camp[]> {
+  const qs = cityId ? `?cityId=${cityId}` : "";
+  return (await get<{ camps: Camp[] }>(`/api/camps${qs}`)).camps;
+}
+
+export async function createCamp(body: {
+  name: string; description?: string; visibility: CampVisibility;
+  ownerId: string; ownerName: string;
+}): Promise<Camp> {
+  return (await post<{ camp: Camp }>("/api/camps", body)).camp;
+}
+
+export async function joinCamp(campId: string, userId: string, userName: string) {
+  return post<{ joined: boolean; needApproval: boolean }>(`/api/camps/${campId}/join`, { userId, userName });
 }

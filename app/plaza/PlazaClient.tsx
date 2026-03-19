@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import type { PlazaUser, PlazaPostWithReactions, City, ReactionType } from "@/lib/types";
+import type { PlazaUser, PlazaPostWithReactions, City, Camp, ReactionType } from "@/lib/types";
 import { hashStr } from "@/lib/utils";
 import * as api from "@/lib/api";
 import { MAX_USERS } from "./constants";
@@ -25,6 +25,8 @@ export default function PlazaClient() {
   const [users, setUsers] = useState<PlazaUser[]>([]);
   const [posts, setPosts] = useState<PlazaPostWithReactions[]>([]);
   const [zones, setZones] = useState<City[]>([]);
+  const [camps, setCamps] = useState<Camp[]>([]);
+  const [currentCamp, setCurrentCamp] = useState<Camp | null>(null);
   const [currentUser, setCurrentUser] = useState<PlazaUser | null>(null);
 
   const [visibleSeed, setVisibleSeed] = useState(0);
@@ -38,14 +40,16 @@ export default function PlazaClient() {
   // ============ 数据 ============
 
   const fetchAll = useCallback(async (userId?: string) => {
-    const [u, p, z] = await Promise.all([
+    const [u, p, z, c] = await Promise.all([
       api.fetchPlazaUsers(),
       api.fetchPosts(userId),
       api.fetchZones(),
+      api.fetchCamps(),
     ]);
     setUsers(u);
     setPosts(p);
     setZones(z);
+    setCamps(c);
   }, []);
 
   useEffect(() => {
@@ -57,6 +61,7 @@ export default function PlazaClient() {
         occupation: null, description: null,
         avatarUrl: raw.avatarUrl ?? null, route: raw.route ?? null,
         walletAddress: null, cityId: "xingluo",
+        campId: null, isOnline: true, lastSeenAt: null,
         reputation: 0, coins: 0, compute: 0, joinedAt: "",
       };
       setCurrentUser(u);
@@ -72,6 +77,11 @@ export default function PlazaClient() {
   );
   const visibleOthers = shuffled.slice(0, MAX_USERS - 1);
   const allVisible = currentUser ? [currentUser, ...visibleOthers] : visibleOthers;
+
+  // 当前用户的营地
+  const myCamp = camps.find((c) => c.id === currentUser?.campId) ?? camps[0];
+  // 只显示同营地的用户（闲逛模式看所有人但不占位）
+  const campUsers = allVisible.filter((u) => u.campId === myCamp?.id);
   const votingZones = zones.filter((z) => z.status === "voting");
 
   // ============ 回调 ============
@@ -116,8 +126,8 @@ export default function PlazaClient() {
       {menuTab === "camp" && (
         <>
           <UserSidebar
-            users={visibleOthers}
-            totalCount={otherUsers.length}
+            users={campUsers.filter((u) => u.id !== currentUser?.id)}
+            totalCount={campUsers.length - (currentUser ? 1 : 0)}
             selectedUserId={selectedUser?.id ?? null}
             onSelectUser={setSelectedUser}
             onRefresh={() => { setVisibleSeed((s) => s + 1); setSelectedUser(null); }}
@@ -134,15 +144,18 @@ export default function PlazaClient() {
           >
             <div className="text-center py-2 shrink-0">
               <span className="pixel-font" style={{ fontSize: 12, color: "var(--pixel-gold)" }}>
-                ⛺ 星罗城 · 营地
+                ⛺ {myCamp?.name ?? "营地"}
               </span>
               <span style={{ fontSize: 10, color: "var(--pixel-muted)", marginLeft: 8 }}>
-                {allVisible.length} 冒险者
+                {campUsers.length} 冒险者
               </span>
+              {myCamp?.visibility === "private" && (
+                <span style={{ fontSize: 9, color: "var(--pixel-accent)", marginLeft: 6 }}>🔒 私人</span>
+              )}
             </div>
             <div className="flex-1 p-1" style={{ overflow: "hidden" }}>
               <MapGrid
-                users={allVisible}
+                users={campUsers}
                 currentUser={currentUser}
                 selectedUserId={selectedUser?.id ?? null}
                 onSelectUser={setSelectedUser}

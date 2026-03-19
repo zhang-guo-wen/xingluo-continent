@@ -262,6 +262,7 @@ export async function getLeaderboard(type: LeaderboardType, limit = 50): Promise
       occupation: r.occupation, description: r.description,
       avatarUrl: r.avatar_url, route: r.route,
       walletAddress: r.wallet_address, cityId: r.city_id ?? "xingluo",
+      campId: r.camp_id ?? null, isOnline: r.is_online ?? false, lastSeenAt: r.last_seen_at ?? null,
       reputation: r.reputation, coins: r.coins, compute: r.compute ?? 0,
       joinedAt: r.joined_at,
     }));

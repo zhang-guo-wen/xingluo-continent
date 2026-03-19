@@ -5,6 +5,7 @@ import path from "path";
 
 export type { PlazaUser, PlazaPost, UserSearchParams } from "./types";
 import { mintCoins } from "./economy";
+import { assignRandomCamp, markOnline } from "./camps";
 import type { PlazaUser, PlazaPost, UserSearchParams } from "./types";
 
 const USER_NO_PREFIX = "XL";
@@ -77,6 +78,9 @@ function mapUser(r: Record<string, unknown>): PlazaUser {
     avatarUrl: r.avatar_url as string | null, route: r.route as string | null,
     walletAddress: r.wallet_address as string | null,
     cityId: (r.city_id as string) ?? "xingluo",
+    campId: (r.camp_id as string) ?? null,
+    isOnline: (r.is_online as boolean) ?? false,
+    lastSeenAt: (r.last_seen_at as string) ?? null,
     reputation: r.reputation as number, coins: r.coins as number, compute: (r.compute as number) ?? 0,
     joinedAt: r.joined_at as string,
   };
@@ -85,7 +89,7 @@ function mapUser(r: Record<string, unknown>): PlazaUser {
 // ============ 用户 CRUD ============
 
 export async function upsertPlazaUser(
-  input: Omit<PlazaUser, "userNo" | "reputation" | "coins" | "compute" | "walletAddress" | "cityId"> & {
+  input: Omit<PlazaUser, "userNo" | "reputation" | "coins" | "compute" | "walletAddress" | "cityId" | "campId" | "isOnline" | "lastSeenAt"> & {
     occupation?: string | null;
     description?: string | null;
     walletAddress?: string | null;
@@ -109,13 +113,15 @@ export async function upsertPlazaUser(
       const newDesc = description ?? e.description;
       await sql`
         UPDATE plaza_users SET name = ${input.name}, avatar_url = ${input.avatarUrl}, route = ${input.route},
-          occupation = ${newOcc}, description = ${newDesc}
+          occupation = ${newOcc}, description = ${newDesc}, is_online = true, last_seen_at = NOW()
         WHERE id = ${input.id}
       `;
+      markOnline(input.id).catch(() => {});
       return {
         ...input, occupation: newOcc, description: newDesc,
         userNo: e.user_no, walletAddress: e.wallet_address,
         cityId: e.city_id ?? "xingluo",
+        campId: e.camp_id ?? null, isOnline: true, lastSeenAt: new Date().toISOString(),
         reputation: e.reputation, coins: e.coins, compute: e.compute ?? 0,
       };
     }
@@ -124,9 +130,10 @@ export async function upsertPlazaUser(
       INSERT INTO plaza_users (id, user_no, name, occupation, description, avatar_url, route, wallet_address, city_id, reputation, coins, joined_at)
       VALUES (${input.id}, ${userNo}, ${input.name}, ${occupation}, ${description}, ${input.avatarUrl}, ${input.route}, ${input.walletAddress ?? null}, ${cityId}, 0, 0, ${input.joinedAt})
     `;
-    // 新用户注册奖励
+    // 新用户注册奖励 + 分配随机营地
     mintCoins(input.id, 100, "signup_bonus", "注册奖励").catch(() => {});
-    return { ...input, userNo, occupation, description, walletAddress: input.walletAddress ?? null, cityId, reputation: 0, coins: 100, compute: 0 };
+    const campId = await assignRandomCamp(input.id).catch(() => "camp_default") ?? "camp_default";
+    return { ...input, userNo, occupation, description, walletAddress: input.walletAddress ?? null, cityId, campId, isOnline: true, lastSeenAt: new Date().toISOString(), reputation: 0, coins: 100, compute: 0 };
   }
 
   // 文件回退
@@ -144,7 +151,7 @@ export async function upsertPlazaUser(
   const userNo = await nextUserNo();
   const newUser: PlazaUser = {
     ...input, userNo, occupation, description,
-    walletAddress: input.walletAddress ?? null, cityId, reputation: 0, coins: 100, compute: 0,
+    walletAddress: input.walletAddress ?? null, cityId, campId: "camp_default", isOnline: true, lastSeenAt: new Date().toISOString(), reputation: 0, coins: 100, compute: 0,
   };
   users.push(newUser);
   writeJson(USERS_FILE, users);
