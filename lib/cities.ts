@@ -131,23 +131,29 @@ export async function proposeCity(input: {
   const gz = (Math.random() - 0.5) * 50;
   const pos = await findFreePosition();
 
+  // 门槛 = 系统用户 10%，最少 1
+  let threshold = 1;
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
+    const [{ cnt }] = await sql`SELECT COUNT(*)::int AS cnt FROM plaza_users`;
+    threshold = Math.max(1, Math.ceil(cnt * 0.1));
     await sql`
       INSERT INTO cities (id, name, description, color, icon, galaxy_x, galaxy_y, galaxy_z, grid_x, grid_y, grid_w, grid_h, creator_id, status, vote_threshold)
       VALUES (${id}, ${input.name}, ${input.description ?? null}, ${input.color ?? "#6b8cff"}, ${input.icon ?? "house"},
-              ${gx}, ${gy}, ${gz}, ${pos.x}, ${pos.y}, 4, 3, ${input.creatorId}, 'voting', 10000)
+              ${gx}, ${gy}, ${gz}, ${pos.x}, ${pos.y}, 4, 3, ${input.creatorId}, 'voting', ${threshold})
     `;
   } else {
     const cities = readJson<City[]>(CITIES_FILE, [DEFAULT_CITY]);
+    const usersFile = path.join(DATA_DIR, "users.json");
+    try { threshold = Math.max(1, Math.ceil(JSON.parse(fs.readFileSync(usersFile, "utf-8")).length * 0.1)); } catch {}
     cities.push({
       id, name: input.name, description: input.description ?? null,
       color: input.color ?? "#6b8cff", icon: input.icon ?? "house",
       galaxyX: gx, galaxyY: gy, galaxyZ: gz,
       gridX: pos.x, gridY: pos.y, gridW: 4, gridH: 3,
       capacity: 1_000_000, population: 0, creatorId: input.creatorId,
-      status: "voting", voteCount: 0, voteThreshold: 10_000,
+      status: "voting", voteCount: 0, voteThreshold: threshold,
       createdAt: new Date().toISOString(),
     });
     writeJson(CITIES_FILE, cities);
@@ -181,21 +187,30 @@ export async function voteCity(cityId: string, userId: string): Promise<{ city: 
 async function checkActivation(cityId: string): Promise<boolean> {
   if (DATABASE_URL) {
     const sql = neon(DATABASE_URL);
-    const [row] = await sql`SELECT status, vote_threshold FROM cities WHERE id = ${cityId}`;
+    const [row] = await sql`SELECT status FROM cities WHERE id = ${cityId}`;
     if (!row || row.status !== "voting") return false;
+    const [{ totalUsers }] = await sql`SELECT COUNT(*)::int AS "totalUsers" FROM plaza_users`;
+    const threshold = Math.max(1, Math.ceil(totalUsers * 0.1));
     const [{ cnt }] = await sql`SELECT COUNT(*)::int AS cnt FROM city_votes WHERE city_id = ${cityId}`;
-    if (cnt >= row.vote_threshold) {
-      await sql`UPDATE cities SET status = 'active' WHERE id = ${cityId}`;
+    if (cnt >= threshold) {
+      await sql`UPDATE cities SET status = 'active', vote_threshold = ${threshold} WHERE id = ${cityId}`;
       return true;
     }
+    // 更新实际门槛显示
+    await sql`UPDATE cities SET vote_threshold = ${threshold} WHERE id = ${cityId}`;
     return false;
   }
   const cities = readJson<City[]>(CITIES_FILE, []);
   const city = cities.find((c) => c.id === cityId);
   if (!city || city.status !== "voting") return false;
+  const usersFile = path.join(DATA_DIR, "users.json");
+  let totalUsers = 1;
+  try { totalUsers = JSON.parse(fs.readFileSync(usersFile, "utf-8")).length || 1; } catch {}
+  const threshold = Math.max(1, Math.ceil(totalUsers * 0.1));
+  city.voteThreshold = threshold;
   const votes = readJson<CityVote[]>(VOTES_FILE, []);
   const cnt = votes.filter((v) => v.cityId === cityId).length;
-  if (cnt >= city.voteThreshold) {
+  if (cnt >= threshold) {
     city.status = "active";
     writeJson(CITIES_FILE, cities);
     return true;

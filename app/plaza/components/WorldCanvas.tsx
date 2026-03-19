@@ -5,7 +5,8 @@ import type { City } from "@/lib/types";
 import { ZONE_ICONS } from "../constants";
 
 const CITY_SIZE = 120;  // 城市方块尺寸
-const SCALE_BASE = 3;   // 坐标缩放系数
+const CITY_GAP = 20;    // 城市间最小间距
+const SLOT = CITY_SIZE + CITY_GAP; // 每个槽位占用
 
 interface Props {
   cities: City[];
@@ -33,13 +34,50 @@ export default function WorldCanvas({ cities, onSelectCity, onPropose }: Props) 
     });
   }
 
-  // 计算城市在画布上的位置（基于银河坐标，聚集在一起）
-  function getCityPos(city: City) {
-    return {
-      x: city.galaxyX * SCALE_BASE,
-      y: city.galaxyY * SCALE_BASE,
-    };
+  // 螺旋布局：按银河坐标排序后，从中心螺旋向外分配槽位，不重叠
+  function layoutCities(list: City[]): Map<string, { x: number; y: number }> {
+    const sorted = [...list].sort((a, b) => {
+      const da = a.galaxyX * a.galaxyX + a.galaxyY * a.galaxyY;
+      const db = b.galaxyX * b.galaxyX + b.galaxyY * b.galaxyY;
+      return da - db;
+    });
+    const positions = new Map<string, { x: number; y: number }>();
+    const occupied = new Set<string>();
+
+    // 螺旋方向序列
+    const dirs = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+    let cx = 0, cy = 0, dirIdx = 0, steps = 1, stepCount = 0, turnCount = 0;
+
+    for (const city of sorted) {
+      // 找到当前螺旋位置
+      while (occupied.has(`${cx},${cy}`)) {
+        cx += dirs[dirIdx][0];
+        cy += dirs[dirIdx][1];
+        stepCount++;
+        if (stepCount >= steps) {
+          stepCount = 0;
+          dirIdx = (dirIdx + 1) % 4;
+          turnCount++;
+          if (turnCount >= 2) { turnCount = 0; steps++; }
+        }
+      }
+      occupied.add(`${cx},${cy}`);
+      positions.set(city.id, { x: cx * SLOT, y: cy * SLOT });
+      // 继续螺旋
+      cx += dirs[dirIdx][0];
+      cy += dirs[dirIdx][1];
+      stepCount++;
+      if (stepCount >= steps) {
+        stepCount = 0;
+        dirIdx = (dirIdx + 1) % 4;
+        turnCount++;
+        if (turnCount >= 2) { turnCount = 0; steps++; }
+      }
+    }
+    return positions;
   }
+
+  const cityPositions = layoutCities(cities);
 
   return (
     <div
@@ -102,7 +140,7 @@ export default function WorldCanvas({ cities, onSelectCity, onPropose }: Props) 
 
       {/* 城市 */}
       {cities.map((city) => {
-        const pos = getCityPos(city);
+        const pos = cityPositions.get(city.id) ?? { x: 0, y: 0 };
         const isActive = city.status === "active";
         return (
           <div

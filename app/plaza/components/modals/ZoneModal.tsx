@@ -27,7 +27,7 @@ export default function ZoneModal({ onSubmit, onClose }: Props) {
         <div className="pixel-font" style={{ fontSize: 14, color: "var(--pixel-gold)" }}>星域官 · 区域申请</div>
       </div>
       <div style={{ fontSize: 13, color: "var(--pixel-muted)", marginBottom: 8, lineHeight: 1.6 }}>
-        冒险者，欢迎申请开辟新区域。提交后将进入全体投票，10% 冒险者赞成即可在地图上开放。
+        冒险者，欢迎申请建立新城市。提交后进入全体投票，超过系统用户 10% 支持即可建立。
       </div>
       <input className="pixel-input mb-2" placeholder="区域名称" value={name} onChange={(e) => setName(e.target.value)} />
       <textarea className="pixel-textarea mb-2" rows={2} placeholder="区域描述（可选）" value={desc} onChange={(e) => setDesc(e.target.value)} />
