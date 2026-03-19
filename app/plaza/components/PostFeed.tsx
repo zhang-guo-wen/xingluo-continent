@@ -7,20 +7,57 @@ import { timeAgo, stringToColor } from "@/lib/utils";
 interface Props {
   posts: PlazaPostWithReactions[];
   onReact: (postId: string, action: ReactionType) => void;
+  onPost?: (content: string) => Promise<void>;
 }
 
-export default function PostFeed({ posts, onReact }: Props) {
+export default function PostFeed({ posts, onReact, onPost }: Props) {
   const [sort, setSort] = useState<"new" | "hot">("new");
+  const [newContent, setNewContent] = useState("");
+  const [posting, setPosting] = useState(false);
 
   const sorted = sort === "hot"
     ? [...posts].sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes))
     : posts;
 
+  async function handlePost() {
+    if (!newContent.trim() || !onPost) return;
+    setPosting(true);
+    try {
+      await onPost(newContent);
+      setNewContent("");
+    } finally {
+      setPosting(false);
+    }
+  }
+
   return (
     <div className="absolute inset-0 overflow-y-auto pb-16 pt-4 px-4" style={{ color: "var(--pixel-text)" }}>
       <h2 className="pixel-font text-center mb-2" style={{ fontSize: 14 }}>广场动态</h2>
 
-      {/* 排序切换 */}
+      {/* 发帖区 */}
+      {onPost && (
+        <div className="pixel-border p-3 mb-4 max-w-lg mx-auto" style={{ background: "var(--pixel-panel)" }}>
+          <textarea
+            className="pixel-textarea mb-2"
+            rows={2}
+            placeholder="说点什么..."
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+          />
+          <div className="flex justify-end">
+            <button
+              className="pixel-btn pixel-btn-accent"
+              style={{ fontSize: 11 }}
+              onClick={handlePost}
+              disabled={posting || !newContent.trim()}
+            >
+              {posting ? "发布中..." : "📝 发布"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 排序 */}
       <div className="flex gap-1 mb-4 p-1 max-w-lg mx-auto" style={{ background: "rgba(15,52,96,0.5)" }}>
         <button onClick={() => setSort("new")} className="flex-1 py-1.5 text-center"
           style={{ fontSize: 11, border: "none", cursor: "pointer",

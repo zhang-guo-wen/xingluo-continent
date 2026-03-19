@@ -4,21 +4,19 @@ import { useEffect, useState, useCallback } from "react";
 import type { PlazaUser, PlazaPostWithReactions, City, ReactionType } from "@/lib/types";
 import { hashStr } from "@/lib/utils";
 import * as api from "@/lib/api";
-import { MAX_USERS, ZONE_ICONS } from "./constants";
+import { MAX_USERS } from "./constants";
 
 import GameMenu, { type MenuTab } from "./components/GameMenu";
-import ActionFab from "./components/ActionFab";
 import MapGrid from "./components/MapGrid";
+import CityMapView from "./components/CityMapView";
 import UserSidebar from "./components/UserSidebar";
 import UserDetailPanel from "./components/UserDetailPanel";
-import NpcBlock from "./components/NpcBlock";
 import PostFeed from "./components/PostFeed";
 import UserSearchPanel from "./components/UserSearchPanel";
 import ProfileView from "./components/ProfileView";
 import LeaderboardView from "./components/LeaderboardView";
 import MarketView from "./components/MarketView";
 
-import PostModal from "./components/modals/PostModal";
 import ZoneModal from "./components/modals/ZoneModal";
 import VoteModal from "./components/modals/VoteModal";
 import ZoneDetailModal from "./components/modals/ZoneDetailModal";
@@ -32,9 +30,11 @@ export default function PlazaClient() {
   const [visibleSeed, setVisibleSeed] = useState(0);
   const [selectedUser, setSelectedUser] = useState<PlazaUser | null>(null);
 
+  // 地图双层：area=区域(人), cities=城市列表
+  const [mapLayer, setMapLayer] = useState<"area" | "cities">("area");
+
   const [menuTab, setMenuTab] = useState<MenuTab>("map");
   const [selectedZone, setSelectedZone] = useState<City | null>(null);
-  const [showPostModal, setShowPostModal] = useState(false);
   const [showZoneModal, setShowZoneModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
 
@@ -73,7 +73,6 @@ export default function PlazaClient() {
   const shuffled = [...otherUsers].sort(
     (a, b) => hashStr(a.id + visibleSeed) - hashStr(b.id + visibleSeed)
   );
-  // 最多 255 个其他人 + 自己 = 256
   const visibleOthers = shuffled.slice(0, MAX_USERS - 1);
   const allVisible = currentUser ? [currentUser, ...visibleOthers] : visibleOthers;
   const votingZones = zones.filter((z) => z.status === "voting");
@@ -83,7 +82,6 @@ export default function PlazaClient() {
   async function handlePost(content: string) {
     if (!currentUser) return;
     await api.createPost({ userId: currentUser.id, userName: currentUser.name, userAvatar: currentUser.avatarUrl, content });
-    setShowPostModal(false);
     fetchAll(currentUser.id);
   }
 
@@ -112,15 +110,24 @@ export default function PlazaClient() {
     );
   }
 
+  function handleMapTabClick() {
+    if (menuTab === "map") {
+      // 已在地图页，切换 area ↔ cities
+      setMapLayer((l) => l === "area" ? "cities" : "area");
+      setSelectedUser(null);
+    } else {
+      setMenuTab("map");
+    }
+  }
+
   // ============ 渲染 ============
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: "var(--pixel-bg)" }}>
 
-      {/* === 地图 === */}
-      {menuTab === "map" && (
+      {/* === 地图：区域层 === */}
+      {menuTab === "map" && mapLayer === "area" && (
         <>
-          {/* 左侧冒险者列表 */}
           <UserSidebar
             users={visibleOthers}
             totalCount={otherUsers.length}
@@ -129,75 +136,91 @@ export default function PlazaClient() {
             onRefresh={() => { setVisibleSeed((s) => s + 1); setSelectedUser(null); }}
           />
 
-          {/* 中心地图 */}
           <div
-            className="absolute overflow-auto scanlines"
+            className="absolute"
             style={{
               left: 180, right: selectedUser ? 280 : 0,
               top: 0, bottom: 56,
-              display: "flex", alignItems: "center", justifyContent: "center",
+              overflow: "hidden",
+              display: "flex", flexDirection: "column",
             }}
           >
-            <div style={{ padding: 16 }}>
-              {/* 区域标题 */}
-              <div className="text-center mb-3">
-                <span className="pixel-font" style={{ fontSize: 14, color: "var(--pixel-gold)" }}>
-                  {ZONE_ICONS["castle"]} 星罗城
-                </span>
-                <span style={{ fontSize: 11, color: "var(--pixel-muted)", marginLeft: 8 }}>
-                  {allVisible.length}/{MAX_USERS} 冒险者
-                </span>
-              </div>
+            {/* 区域标题栏 */}
+            <div className="text-center py-2 shrink-0">
+              <span className="pixel-font" style={{ fontSize: 12, color: "var(--pixel-gold)" }}>
+                🏰 星罗城
+              </span>
+              <span style={{ fontSize: 10, color: "var(--pixel-muted)", marginLeft: 8 }}>
+                {allVisible.length}/{MAX_USERS}
+              </span>
+              <button
+                onClick={() => setMapLayer("cities")}
+                style={{ marginLeft: 12, background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "var(--pixel-blue)" }}
+              >
+                🌌 查看所有城市 →
+              </button>
+            </div>
 
+            {/* 地图网格，填满剩余空间 */}
+            <div className="flex-1 p-2" style={{ overflow: "hidden" }}>
               <MapGrid
                 users={allVisible}
                 currentUser={currentUser}
                 selectedUserId={selectedUser?.id ?? null}
                 onSelectUser={setSelectedUser}
               />
-
-              {/* NPC 在地图下方 */}
-              <div className="flex justify-center mt-4 gap-4">
-                <button
-                  className="pixel-btn pixel-btn-green"
-                  style={{ fontSize: 11 }}
-                  onClick={() => setShowZoneModal(true)}
-                >
-                  👑 星域官 · 申请建城
-                </button>
-                {votingZones.length > 0 && (
-                  <button
-                    className="pixel-btn"
-                    style={{ fontSize: 11 }}
-                    onClick={() => setShowVoteModal(true)}
-                  >
-                    🗳️ 投票 ({votingZones.length})
-                  </button>
-                )}
-              </div>
             </div>
           </div>
 
-          {/* 右侧用户详情面板 */}
           {selectedUser && (
             <UserDetailPanel user={selectedUser} onClose={() => setSelectedUser(null)} />
           )}
         </>
       )}
 
-      {/* === 其他 tab === */}
-      {menuTab === "posts" && <PostFeed posts={posts} onReact={handleReact} />}
+      {/* === 地图：城市层 === */}
+      {menuTab === "map" && mapLayer === "cities" && (
+        <>
+          <CityMapView
+            cities={zones}
+            onSelectCity={(city) => {
+              if (city.status === "active") {
+                setSelectedZone(city);
+              } else {
+                setShowVoteModal(true);
+              }
+            }}
+            onPropose={() => setShowZoneModal(true)}
+          />
+          <button
+            onClick={() => setMapLayer("area")}
+            className="fixed top-3 left-3 z-50 pixel-btn"
+            style={{ fontSize: 10 }}
+          >
+            ← 返回区域
+          </button>
+        </>
+      )}
+
+      {/* === 动态（内嵌发帖） === */}
+      {menuTab === "posts" && (
+        <PostFeed posts={posts} onReact={handleReact} onPost={handlePost} />
+      )}
+
       {menuTab === "market" && <MarketView currentUserId={currentUser?.id} onBuy={() => fetchAll(currentUser?.id)} />}
       {menuTab === "search" && <UserSearchPanel />}
       {menuTab === "rank" && <LeaderboardView currentUserId={currentUser?.id} />}
       {menuTab === "me" && currentUser && <ProfileView user={currentUser} onUserUpdate={setCurrentUser} />}
 
-      {/* === 导航 === */}
-      <GameMenu active={menuTab} onChange={(t) => { setMenuTab(t); setSelectedUser(null); }} />
-      <ActionFab votingCount={votingZones.length} onPost={() => setShowPostModal(true)} onVote={() => setShowVoteModal(true)} />
+      {/* === 底部菜单 === */}
+      <GameMenu active={menuTab} onChange={(t) => {
+        if (t === "map") { handleMapTabClick(); return; }
+        setMenuTab(t);
+        setSelectedUser(null);
+        setMapLayer("area");
+      }} />
 
       {/* === 弹窗 === */}
-      {showPostModal && <PostModal onSubmit={handlePost} onClose={() => setShowPostModal(false)} />}
       {showZoneModal && <ZoneModal onSubmit={handleProposeZone} onClose={() => setShowZoneModal(false)} />}
       {showVoteModal && <VoteModal zones={votingZones} onVote={handleVote} onClose={() => setShowVoteModal(false)} />}
       {selectedZone && <ZoneDetailModal zone={selectedZone} onClose={() => setSelectedZone(null)} />}
