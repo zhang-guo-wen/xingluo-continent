@@ -2,9 +2,9 @@ import { neon } from "@neondatabase/serverless";
 import fs from "fs";
 import path from "path";
 import { genId } from "./utils";
-import type { Camp, CampVisibility, CampJoinRequest } from "./types";
+import type { Camp, CampVisibility, CampJoinRequest, CampFollow, UserFriend } from "./types";
 
-export type { Camp, CampJoinRequest };
+export type { Camp, CampJoinRequest, CampFollow, UserFriend };
 
 const DATABASE_URL = process.env.DATABASE_URL;
 let schemaReady = false;
@@ -36,6 +36,22 @@ async function ensureSchema() {
       status TEXT NOT NULL DEFAULT 'pending',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE (camp_id, user_id)
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS camp_follows (
+      user_id TEXT NOT NULL,
+      camp_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, camp_id)
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS user_friends (
+      user_id TEXT NOT NULL,
+      friend_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, friend_id)
     )
   `;
   // 用户表加营地相关列
@@ -230,6 +246,73 @@ export async function getCampRequests(campId: string): Promise<CampJoinRequest[]
     }));
   }
   return readJson<CampJoinRequest[]>(REQUESTS_FILE, []).filter((r) => r.campId === campId && r.status === "pending");
+}
+
+// ============ 营地关注 ============
+
+export async function followCamp(userId: string, campId: string): Promise<void> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    await sql`INSERT INTO camp_follows (user_id, camp_id) VALUES (${userId}, ${campId}) ON CONFLICT DO NOTHING`;
+  }
+}
+
+export async function unfollowCamp(userId: string, campId: string): Promise<void> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    await sql`DELETE FROM camp_follows WHERE user_id = ${userId} AND camp_id = ${campId}`;
+  }
+}
+
+export async function getFollowedCamps(userId: string): Promise<CampFollow[]> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    const rows = await sql`
+      SELECT cf.user_id, cf.camp_id, c.name AS camp_name, cf.created_at
+      FROM camp_follows cf JOIN camps c ON cf.camp_id = c.id
+      WHERE cf.user_id = ${userId} ORDER BY cf.created_at DESC
+    `;
+    return rows.map((r) => ({ userId: r.user_id, campId: r.camp_id, campName: r.camp_name, createdAt: r.created_at }));
+  }
+  return [];
+}
+
+// ============ 好友 ============
+
+export async function addFriend(userId: string, friendId: string): Promise<void> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    // 双向添加
+    await sql`INSERT INTO user_friends (user_id, friend_id) VALUES (${userId}, ${friendId}) ON CONFLICT DO NOTHING`;
+    await sql`INSERT INTO user_friends (user_id, friend_id) VALUES (${friendId}, ${userId}) ON CONFLICT DO NOTHING`;
+  }
+}
+
+export async function removeFriend(userId: string, friendId: string): Promise<void> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    await sql`DELETE FROM user_friends WHERE user_id = ${userId} AND friend_id = ${friendId}`;
+    await sql`DELETE FROM user_friends WHERE user_id = ${friendId} AND friend_id = ${userId}`;
+  }
+}
+
+export async function getFriends(userId: string): Promise<UserFriend[]> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    const rows = await sql`
+      SELECT uf.user_id, uf.friend_id, u.name AS friend_name, uf.created_at
+      FROM user_friends uf JOIN plaza_users u ON uf.friend_id = u.id
+      WHERE uf.user_id = ${userId} ORDER BY uf.created_at DESC
+    `;
+    return rows.map((r) => ({ userId: r.user_id, friendId: r.friend_id, friendName: r.friend_name, createdAt: r.created_at }));
+  }
+  return [];
 }
 
 function mapCamp(r: Record<string, unknown>): Camp {

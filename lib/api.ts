@@ -5,7 +5,7 @@ import type {
   UserSkill, UserItem, UserTask, ItemCategory, TaskStatus, UserSearchParams,
   Transaction, CheckinResult, LeaderboardType,
   UserEvent, EventComment,
-  Camp, CampVisibility,
+  Camp, CampVisibility, CampFollow, UserFriend,
 } from "./types";
 
 // ============ 通用 ============
@@ -229,4 +229,30 @@ export async function createCamp(body: {
 
 export async function joinCamp(campId: string, userId: string, userName: string) {
   return post<{ joined: boolean; needApproval: boolean }>(`/api/camps/${campId}/join`, { userId, userName });
+}
+
+export async function followCamp(userId: string, campId: string) {
+  return post<{ ok: boolean }>("/api/camps/follow", { userId, campId });
+}
+
+export async function unfollowCamp(userId: string, campId: string) {
+  return post<{ ok: boolean }>("/api/camps/follow", { userId, campId, action: "unfollow" });
+}
+
+export async function fetchFollowedCamps(userId: string): Promise<CampFollow[]> {
+  return (await get<{ follows: CampFollow[] }>(`/api/camps/follow?userId=${userId}`)).follows;
+}
+
+// ============ 好友 ============
+
+export async function fetchFriends(userId: string): Promise<UserFriend[]> {
+  return (await get<{ friends: UserFriend[] }>(`/api/friends?userId=${userId}`)).friends;
+}
+
+export async function addFriend(userId: string, friendId: string) {
+  return post<{ ok: boolean }>("/api/friends", { userId, friendId });
+}
+
+export async function removeFriend(userId: string, friendId: string) {
+  return post<{ ok: boolean }>("/api/friends", { userId, friendId, action: "remove" });
 }

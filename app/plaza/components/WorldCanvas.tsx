@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
-import type { City } from "@/lib/types";
+import { useState, useRef, useEffect } from "react";
+import type { City, CampFollow } from "@/lib/types";
 import { ZONE_ICONS } from "../constants";
+import * as api from "@/lib/api";
 
 const CITY_SIZE = 120;  // 城市方块尺寸
 const CITY_GAP = 20;    // 城市间最小间距
@@ -10,11 +11,19 @@ const SLOT = CITY_SIZE + CITY_GAP; // 每个槽位占用
 
 interface Props {
   cities: City[];
+  currentUserId?: string;
   onSelectCity: (city: City) => void;
   onPropose: () => void;
+  onViewCamp?: (campId: string) => void;
 }
 
-export default function WorldCanvas({ cities, onSelectCity, onPropose }: Props) {
+export default function WorldCanvas({ cities, currentUserId, onSelectCity, onPropose, onViewCamp }: Props) {
+  const [followedCamps, setFollowedCamps] = useState<CampFollow[]>([]);
+  const [showFollowed, setShowFollowed] = useState(false);
+
+  useEffect(() => {
+    if (currentUserId) api.fetchFollowedCamps(currentUserId).then(setFollowedCamps).catch(() => {});
+  }, [currentUserId]);
   // 画布偏移（拖拽平移）
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -193,6 +202,43 @@ export default function WorldCanvas({ cities, onSelectCity, onPropose }: Props) 
         <span style={{ fontSize: 11, color: "var(--pixel-muted)", marginLeft: 8 }}>
           {cities.filter((c) => c.status === "active").length} 座城市
         </span>
+      </div>
+
+      {/* 左侧：关注的营地面板 */}
+      <div className="fixed top-0 left-0 z-40" style={{
+        width: showFollowed ? 200 : 40, height: "calc(100% - 56px)",
+        background: "rgba(22,33,62,0.95)", borderRight: "2px solid var(--pixel-border)",
+        transition: "width 0.2s",
+      }}>
+        <button
+          onClick={() => setShowFollowed(!showFollowed)}
+          style={{ width: 40, height: 40, background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--pixel-gold)" }}
+        >
+          {showFollowed ? "◀" : "⛺"}
+        </button>
+        {showFollowed && (
+          <div className="px-2 overflow-y-auto" style={{ height: "calc(100% - 40px)" }}>
+            <div className="pixel-font mb-2" style={{ fontSize: 8, color: "var(--pixel-gold)" }}>
+              关注的营地 ({followedCamps.length})
+            </div>
+            {followedCamps.length === 0 ? (
+              <div style={{ fontSize: 10, color: "var(--pixel-muted)", textAlign: "center", padding: 8 }}>
+                还没关注营地
+              </div>
+            ) : (
+              followedCamps.map((f) => (
+                <div
+                  key={f.campId}
+                  className="pixel-border p-2 mb-1 cursor-pointer"
+                  style={{ background: "var(--pixel-bg)", fontSize: 11 }}
+                  onClick={() => onViewCamp?.(f.campId)}
+                >
+                  <div style={{ color: "var(--pixel-text)" }}>⛺ {f.campName}</div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* 右下角建城按钮 */}

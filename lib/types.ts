@@ -78,6 +78,22 @@ export interface CityVote {
   createdAt: string;
 }
 
+// ============ 好友 & 关注 ============
+
+export interface UserFriend {
+  userId: string;
+  friendId: string;
+  friendName: string;
+  createdAt: string;
+}
+
+export interface CampFollow {
+  userId: string;
+  campId: string;
+  campName: string;
+  createdAt: string;
+}
+
 // ============ 帖子 ============
 
 export interface PlazaPost {
