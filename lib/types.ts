@@ -101,8 +101,17 @@ export interface PlazaPost {
   userId: string;
   userName: string;
   userAvatar: string | null;
-  campId: string | null;    // 发帖所在营地
-  content: string;
+  campId: string | null;
+  content: string;          // Markdown 格式
+  images: string[];         // 图片 ID 列表
+  createdAt: string;
+}
+
+export interface UploadedImage {
+  id: string;
+  userId: string;
+  mimeType: string;
+  size: number;
   createdAt: string;
 }
 

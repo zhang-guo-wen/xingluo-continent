@@ -171,6 +171,23 @@ export async function updateTaskStatus(taskId: string, userId: string, status: T
   await post("/api/profile/tasks", { action: "updateStatus", taskId, userId, status, assigneeId });
 }
 
+// ============ 论坛（聚合 feed） ============
+
+export async function fetchForumPosts(userId: string): Promise<PlazaPostWithReactions[]> {
+  return (await get<{ posts: PlazaPostWithReactions[] }>(`/api/forum?userId=${userId}`)).posts;
+}
+
+/** 上传图片，返回 URL */
+export async function uploadImage(userId: string, file: File): Promise<string> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("userId", userId);
+  const res = await fetch("/api/images", { method: "POST", body: fd });
+  if (!res.ok) throw new Error("上传失败");
+  const data = await res.json();
+  return data.url as string;
+}
+
 // ============ 经济系统 ============
 
 export async function fetchTransactions(userId: string): Promise<Transaction[]> {

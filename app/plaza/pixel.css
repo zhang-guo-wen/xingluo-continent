@@ -348,3 +348,17 @@
 .pixel-textarea:focus {
   border-color: var(--pixel-accent);
 }
+
+/* 论坛 Markdown 样式 */
+.forum-md p { margin: 4px 0; }
+.forum-md h1, .forum-md h2, .forum-md h3 { color: var(--pixel-gold); margin: 8px 0 4px; }
+.forum-md h1 { font-size: 16px; }
+.forum-md h2 { font-size: 14px; }
+.forum-md h3 { font-size: 13px; }
+.forum-md strong { color: var(--pixel-text); }
+.forum-md em { color: var(--pixel-muted); }
+.forum-md ul, .forum-md ol { padding-left: 20px; margin: 4px 0; }
+.forum-md li { margin: 2px 0; }
+.forum-md blockquote { border-left: 3px solid var(--pixel-border); padding-left: 10px; color: var(--pixel-muted); margin: 4px 0; }
+.forum-md pre { background: var(--pixel-bg); padding: 8px; overflow-x: auto; margin: 4px 0; }
+.forum-md hr { border: none; border-top: 1px solid var(--pixel-border); margin: 8px 0; }

@@ -168,7 +168,7 @@ const TOOLS = [
 
 type ToolHandler = (
   args: Record<string, unknown>,
-  ctx: { userId: string; userName: string; userAvatar: string | null }
+  ctx: { userId: string; userName: string; userAvatar: string | null; campId: string }
 ) => Promise<unknown>;
 
 const handlers: Record<string, ToolHandler> = {
@@ -224,7 +224,7 @@ const handlers: Record<string, ToolHandler> = {
       userId: ctx.userId,
       userName: ctx.userName,
       userAvatar: ctx.userAvatar,
-      campId: null,
+      campId: ctx.campId,
       content: content.trim(),
     });
     return {
@@ -416,8 +416,8 @@ export async function POST(request: NextRequest) {
 
   const { user } = auth;
 
-  // 自动注册到广场
-  await upsertPlazaUser({
+  // 自动注册到广场并获取完整用户信息
+  const plazaUser = await upsertPlazaUser({
     id: user.id,
     name: user.name,
     occupation: null,
@@ -445,6 +445,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       userName: user.name,
       userAvatar: user.avatarUrl,
+      campId: plazaUser.campId ?? "camp_default",
     });
 
     return NextResponse.json({

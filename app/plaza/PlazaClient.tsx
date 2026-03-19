@@ -13,6 +13,7 @@ import WorldCanvas from "./components/WorldCanvas";
 import UserSidebar from "./components/UserSidebar";
 import UserDetailPanel from "./components/UserDetailPanel";
 import FriendsView from "./components/FriendsView";
+import ForumView from "./components/ForumView";
 import PostFeed from "./components/PostFeed";
 import ProfileView from "./components/ProfileView";
 import LeaderboardView from "./components/LeaderboardView";
@@ -36,7 +37,7 @@ export default function PlazaClient() {
   const [viewingCampId, setViewingCampId] = useState<string | null>(null);
   const [viewingCampPosts, setViewingCampPosts] = useState<PlazaPostWithReactions[]>([]);
 
-  const [menuTab, setMenuTab] = useState<MenuTab>("camp");
+  const [menuTab, setMenuTab] = useState<MenuTab>("forum");
   const [selectedZone, setSelectedZone] = useState<City | null>(null);
   const [showZoneModal, setShowZoneModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
@@ -259,6 +260,17 @@ export default function PlazaClient() {
           }}
           onPropose={() => setShowZoneModal(true)}
           onViewCamp={viewCamp}
+        />
+      )}
+
+      {/* === 论坛 === */}
+      {menuTab === "forum" && currentUser && (
+        <ForumView
+          currentUserId={currentUser.id}
+          currentUserName={currentUser.name}
+          currentUserAvatar={currentUser.avatarUrl}
+          campId={myCampId}
+          onReact={handleReact}
         />
       )}
 
