@@ -50,6 +50,11 @@ export default function PlazaClient() {
     setPosts(p);
     setZones(z);
     setCamps(c);
+    // 用数据库中的真实用户数据更新 currentUser
+    if (userId) {
+      const dbUser = u.find((x) => x.id === userId);
+      if (dbUser) setCurrentUser(dbUser);
+    }
   }, []);
 
   useEffect(() => {
