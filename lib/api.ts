@@ -3,6 +3,7 @@
 import type {
   PlazaUser, PlazaPostWithReactions, City, ReactionType, PostReactions,
   UserSkill, UserItem, UserTask, ItemCategory, TaskStatus, UserSearchParams,
+  Transaction, CheckinResult, LeaderboardType,
 } from "./types";
 
 // ============ 通用 ============
@@ -163,4 +164,22 @@ export async function createTask(body: {
 
 export async function updateTaskStatus(taskId: string, userId: string, status: TaskStatus, assigneeId?: string): Promise<void> {
   await post("/api/profile/tasks", { action: "updateStatus", taskId, userId, status, assigneeId });
+}
+
+// ============ 经济系统 ============
+
+export async function fetchTransactions(userId: string): Promise<Transaction[]> {
+  return (await get<{ transactions: Transaction[] }>(`/api/profile/transactions?userId=${userId}`)).transactions;
+}
+
+export async function doCheckin(userId: string): Promise<CheckinResult> {
+  return post<CheckinResult>("/api/checkin", { userId });
+}
+
+export async function fetchLeaderboard(type: LeaderboardType): Promise<PlazaUser[]> {
+  return (await get<{ users: PlazaUser[] }>(`/api/leaderboard?type=${type}`)).users;
+}
+
+export async function boostTarget(userId: string, targetType: "post" | "item", targetId: string, computeAmount: number): Promise<void> {
+  await post("/api/boost", { userId, targetType, targetId, computeAmount });
 }

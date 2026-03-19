@@ -1,11 +1,12 @@
 "use client";
 
-export type MenuTab = "map" | "posts" | "members" | "me";
+export type MenuTab = "map" | "posts" | "members" | "rank" | "me";
 
 const TABS: { key: MenuTab; icon: string; label: string }[] = [
   { key: "map", icon: "🗺️", label: "地图" },
   { key: "posts", icon: "📜", label: "动态" },
   { key: "members", icon: "👥", label: "成员" },
+  { key: "rank", icon: "🏆", label: "排行" },
   { key: "me", icon: "👤", label: "我" },
 ];
 

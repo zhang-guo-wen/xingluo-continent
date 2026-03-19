@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PlazaUser, PlazaPostWithReactions, UserSkill, UserItem, UserTask } from "@/lib/types";
+import type { PlazaUser, PlazaPostWithReactions, UserSkill, UserItem, UserTask, Transaction } from "@/lib/types";
 import { timeAgo } from "@/lib/utils";
 import * as api from "@/lib/api";
 import PixelAvatar from "./PixelAvatar";
@@ -10,14 +10,20 @@ import SkillModal from "./modals/SkillModal";
 import ItemModal from "./modals/ItemModal";
 import TaskModal from "./modals/TaskModal";
 
-type ProfileTab = "skills" | "posts" | "items" | "tasks";
+type ProfileTab = "skills" | "posts" | "items" | "tasks" | "ledger";
 
 const TABS: { key: ProfileTab; icon: string; label: string }[] = [
   { key: "skills", icon: "🎯", label: "技能" },
   { key: "posts", icon: "📝", label: "消息" },
   { key: "items", icon: "🏪", label: "商品" },
   { key: "tasks", icon: "📋", label: "任务" },
+  { key: "ledger", icon: "📒", label: "账单" },
 ];
+
+const TX_TYPE_LABEL: Record<string, string> = {
+  mint: "系统铸造", trade: "交易", task_reward: "任务奖励",
+  like_reward: "点赞奖励", checkin: "签到", boost: "加速", signup_bonus: "注册奖励",
+};
 
 const CATEGORY_LABEL: Record<string, string> = {
   goods: "📦 物品", info: "📄 信息", service: "🛠️ 服务", compute: "⚡ 算力",
@@ -44,6 +50,8 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
   const [showSkillModal, setShowSkillModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [checkinDone, setCheckinDone] = useState(false);
 
   useEffect(() => {
     if (!user.id) return;
@@ -51,6 +59,7 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
     api.fetchPosts(user.id).then((all) => setPosts(all.filter((p) => p.userId === user.id))).catch(() => {});
     api.fetchUserItems(user.id).then(setItems).catch(() => {});
     api.fetchUserTasks(user.id).then(setTasks).catch(() => {});
+    api.fetchTransactions(user.id).then(setTransactions).catch(() => {});
   }, [user.id]);
 
   async function handleEditProfile(data: { name: string; occupation: string; description: string; walletAddress: string }) {
@@ -97,9 +106,10 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
               </div>
               {user.occupation && <div style={{ fontSize: 13, color: "var(--pixel-gold)", marginTop: 2 }}>{user.occupation}</div>}
               {user.description && <div style={{ fontSize: 12, color: "var(--pixel-muted)", marginTop: 2 }}>{user.description}</div>}
-              <div className="flex gap-4 mt-3" style={{ fontSize: 12 }}>
-                <span style={{ color: "var(--pixel-gold)" }}>⭐ {user.reputation} 信誉</span>
-                <span style={{ color: "var(--pixel-gold)" }}>🪙 {user.coins} XLC</span>
+              <div className="flex gap-3 mt-3 flex-wrap" style={{ fontSize: 12 }}>
+                <span style={{ color: "var(--pixel-gold)" }}>⭐ {user.reputation}</span>
+                <span style={{ color: "var(--pixel-gold)" }}>🪙 {user.coins}</span>
+                <span style={{ color: "var(--pixel-blue)" }}>⚡ {user.compute ?? 0}</span>
               </div>
               {user.walletAddress && (
                 <div style={{ fontSize: 10, color: "var(--pixel-muted)", marginTop: 4 }}>
@@ -108,9 +118,20 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
               )}
             </div>
           </div>
-          <div className="flex gap-2 mt-4">
-            <button className="pixel-btn" style={{ fontSize: 11 }} onClick={() => setShowEditProfile(true)}>✏️ 编辑资料</button>
-            <a href="/dashboard" className="pixel-btn" style={{ fontSize: 11 }}>🏠 主页</a>
+          <div className="flex gap-2 mt-4 flex-wrap">
+            <button
+              className="pixel-btn pixel-btn-green"
+              style={{ fontSize: 11 }}
+              disabled={checkinDone}
+              onClick={async () => {
+                const r = await api.doCheckin(user.id);
+                if (!r.alreadyDone) setCheckinDone(true);
+                else setCheckinDone(true);
+              }}
+            >
+              {checkinDone ? "✅ 已签到" : "📅 签到"}
+            </button>
+            <button className="pixel-btn" style={{ fontSize: 11 }} onClick={() => setShowEditProfile(true)}>✏️ 编辑</button>
             <a href="/api/auth/logout" className="pixel-btn" style={{ fontSize: 11 }}>🚪 退出</a>
           </div>
         </div>
@@ -253,6 +274,34 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
           </div>
         )}
       </div>
+
+        {/* === 账单 === */}
+        {tab === "ledger" && (
+          <div>
+            <div className="mb-3" style={{ fontSize: 13 }}>交易流水</div>
+            {transactions.length === 0 ? (
+              <div className="pixel-border p-4 text-center" style={{ background: "var(--pixel-panel)", fontSize: 13, color: "var(--pixel-muted)" }}>
+                暂无交易记录
+              </div>
+            ) : (
+              transactions.map((tx) => {
+                const isIncome = tx.toUserId === user.id;
+                return (
+                  <div key={tx.id} className="pixel-border p-3 mb-2 flex items-center justify-between" style={{ background: "var(--pixel-panel)" }}>
+                    <div>
+                      <div style={{ fontSize: 12 }}>{TX_TYPE_LABEL[tx.type] ?? tx.type}</div>
+                      {tx.memo && <div style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{tx.memo}</div>}
+                      <div style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{timeAgo(tx.createdAt)}</div>
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: "bold", color: isIncome ? "var(--pixel-green)" : "var(--pixel-accent)" }}>
+                      {isIncome ? "+" : "-"}{tx.amount} XLC
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
 
       {/* === 弹窗 === */}
       {showEditProfile && (

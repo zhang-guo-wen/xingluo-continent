@@ -12,6 +12,7 @@ export interface PlazaUser {
   cityId: string;           // 所属城市
   reputation: number;
   coins: number;
+  compute: number;          // 算力
   joinedAt: string;
 }
 
@@ -133,6 +134,52 @@ export interface ReputationReview {
   rewardPoints: number;     // 通过后获得的信誉分
   status: ReviewStatus;
   createdAt: string;
+}
+
+// ============ 交易流水 ============
+
+export type TxType = "mint" | "trade" | "task_reward" | "like_reward" | "checkin" | "boost" | "signup_bonus";
+
+export interface Transaction {
+  id: string;
+  fromUserId: string | null;  // null = 系统铸造
+  toUserId: string | null;    // null = 销毁
+  amount: number;
+  type: TxType;
+  refId: string | null;
+  memo: string | null;
+  createdAt: string;
+}
+
+// ============ 算力加速 ============
+
+export interface ComputeBoost {
+  id: string;
+  userId: string;
+  targetType: "post" | "item";
+  targetId: string;
+  computeSpent: number;
+  boostScore: number;
+  createdAt: string;
+}
+
+// ============ 价格历史 ============
+
+export interface PricePoint {
+  price: number;
+  recordedAt: string;
+}
+
+// ============ 排行榜 ============
+
+export type LeaderboardType = "reputation" | "coins" | "compute";
+
+// ============ 签到 ============
+
+export interface CheckinResult {
+  alreadyDone: boolean;
+  coinReward: number;
+  computeReward: number;
 }
 
 // ============ 搜索 ============

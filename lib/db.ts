@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 
 export type { PlazaUser, PlazaPost, UserSearchParams } from "./types";
+import { mintCoins } from "./economy";
 import type { PlazaUser, PlazaPost, UserSearchParams } from "./types";
 
 const USER_NO_PREFIX = "XL";
@@ -76,7 +77,7 @@ function mapUser(r: Record<string, unknown>): PlazaUser {
     avatarUrl: r.avatar_url as string | null, route: r.route as string | null,
     walletAddress: r.wallet_address as string | null,
     cityId: (r.city_id as string) ?? "xingluo",
-    reputation: r.reputation as number, coins: r.coins as number,
+    reputation: r.reputation as number, coins: r.coins as number, compute: (r.compute as number) ?? 0,
     joinedAt: r.joined_at as string,
   };
 }
@@ -84,7 +85,7 @@ function mapUser(r: Record<string, unknown>): PlazaUser {
 // ============ 用户 CRUD ============
 
 export async function upsertPlazaUser(
-  input: Omit<PlazaUser, "userNo" | "reputation" | "coins" | "walletAddress" | "cityId"> & {
+  input: Omit<PlazaUser, "userNo" | "reputation" | "coins" | "compute" | "walletAddress" | "cityId"> & {
     occupation?: string | null;
     description?: string | null;
     walletAddress?: string | null;
@@ -99,7 +100,7 @@ export async function upsertPlazaUser(
     await ensureSchema();
     const sql = neon(DATABASE_URL);
     const existing = await sql`
-      SELECT user_no, occupation, description, wallet_address, city_id, reputation, coins
+      SELECT user_no, occupation, description, wallet_address, city_id, reputation, coins, compute
       FROM plaza_users WHERE id = ${input.id}
     `;
     if (existing.length > 0) {
@@ -115,7 +116,7 @@ export async function upsertPlazaUser(
         ...input, occupation: newOcc, description: newDesc,
         userNo: e.user_no, walletAddress: e.wallet_address,
         cityId: e.city_id ?? "xingluo",
-        reputation: e.reputation, coins: e.coins,
+        reputation: e.reputation, coins: e.coins, compute: e.compute ?? 0,
       };
     }
     const userNo = await nextUserNo();
@@ -123,7 +124,9 @@ export async function upsertPlazaUser(
       INSERT INTO plaza_users (id, user_no, name, occupation, description, avatar_url, route, wallet_address, city_id, reputation, coins, joined_at)
       VALUES (${input.id}, ${userNo}, ${input.name}, ${occupation}, ${description}, ${input.avatarUrl}, ${input.route}, ${input.walletAddress ?? null}, ${cityId}, 0, 0, ${input.joinedAt})
     `;
-    return { ...input, userNo, occupation, description, walletAddress: input.walletAddress ?? null, cityId, reputation: 0, coins: 0 };
+    // 新用户注册奖励
+    mintCoins(input.id, 100, "signup_bonus", "注册奖励").catch(() => {});
+    return { ...input, userNo, occupation, description, walletAddress: input.walletAddress ?? null, cityId, reputation: 0, coins: 100, compute: 0 };
   }
 
   // 文件回退
@@ -141,7 +144,7 @@ export async function upsertPlazaUser(
   const userNo = await nextUserNo();
   const newUser: PlazaUser = {
     ...input, userNo, occupation, description,
-    walletAddress: input.walletAddress ?? null, cityId, reputation: 0, coins: 0,
+    walletAddress: input.walletAddress ?? null, cityId, reputation: 0, coins: 100, compute: 0,
   };
   users.push(newUser);
   writeJson(USERS_FILE, users);

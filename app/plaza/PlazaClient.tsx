@@ -16,6 +16,7 @@ import NpcBlock from "./components/NpcBlock";
 import PostFeed from "./components/PostFeed";
 import MemberList from "./components/MemberList";
 import ProfileView from "./components/ProfileView";
+import LeaderboardView from "./components/LeaderboardView";
 
 // 弹窗
 import PostModal from "./components/modals/PostModal";
@@ -68,7 +69,7 @@ export default function PlazaClient() {
         occupation: null, description: null,
         avatarUrl: raw.avatarUrl ?? null, route: raw.route ?? null,
         walletAddress: null, cityId: "xingluo",
-        reputation: 0, coins: 0, joinedAt: "",
+        reputation: 0, coins: 0, compute: 0, joinedAt: "",
       };
       setCurrentUser(u);
       fetchAll(u.id);
@@ -241,6 +242,9 @@ export default function PlazaClient() {
 
       {/* === 成员 === */}
       {menuTab === "members" && <MemberList users={users} />}
+
+      {/* === 排行 === */}
+      {menuTab === "rank" && <LeaderboardView currentUserId={currentUser?.id} />}
 
       {/* === 个人 === */}
       {menuTab === "me" && currentUser && <ProfileView user={currentUser} onUserUpdate={setCurrentUser} />}
