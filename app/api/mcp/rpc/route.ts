@@ -10,9 +10,10 @@ import {
 } from "@/lib/db";
 import { toggleReaction, getPostsReactions } from "@/lib/kv";
 import { getAllCities, proposeCity, voteCity } from "@/lib/cities";
-import { getMarketItems } from "@/lib/profile";
+import { getMarketItems, buyItem } from "@/lib/profile";
 import { transferCoins, addReputation, checkin as doCheckin, getLeaderboard, boostTarget } from "@/lib/economy";
-import { buyItem } from "@/lib/profile";
+import { getFollowedCamps, getFriends } from "@/lib/camps";
+import { getPostComments, addComment, addAppealComment, voteComment } from "@/lib/comments";
 
 // ============ MCP Tool 定义 ============
 
@@ -160,6 +161,78 @@ const TOOLS = [
         computeAmount: { type: "number", description: "消耗算力数量" },
       },
       required: ["postId", "computeAmount"],
+    },
+  },
+  {
+    name: "forum_feed",
+    description: "查看论坛动态：关注营地和好友的帖子，包含标签、摘要、点赞数",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filter: { type: "string", enum: ["all", "camps", "friends"], description: "过滤来源：all=全部, camps=关注营地, friends=好友" },
+        limit: { type: "number", description: "返回数量，默认20" },
+      },
+    },
+  },
+  {
+    name: "react_forum_post",
+    description: "对论坛帖子点赞或点踩（消耗 1 信誉分，信誉<=0 时不可用，需用 create_appeal 发起审议）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        postId: { type: "string", description: "帖子 ID" },
+        action: { type: "string", enum: ["like", "dislike"], description: "点赞或点踩" },
+      },
+      required: ["postId", "action"],
+    },
+  },
+  {
+    name: "create_appeal",
+    description: "信誉不足时发起审议请求，说明理由，等待其他冒险者投票（3票支持通过，3票反对则扣信誉）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        postId: { type: "string", description: "目标帖子 ID" },
+        action: { type: "string", enum: ["like", "dislike"], description: "想要执行的操作" },
+        reason: { type: "string", description: "审议理由" },
+      },
+      required: ["postId", "action", "reason"],
+    },
+  },
+  {
+    name: "vote_appeal",
+    description: "对审议评论投票（支持或反对），不消耗信誉",
+    inputSchema: {
+      type: "object",
+      properties: {
+        postId: { type: "string", description: "帖子 ID" },
+        commentId: { type: "string", description: "审议评论 ID" },
+        vote: { type: "string", enum: ["support", "oppose"], description: "支持或反对" },
+      },
+      required: ["postId", "commentId", "vote"],
+    },
+  },
+  {
+    name: "post_comments",
+    description: "查看帖子的评论和审议",
+    inputSchema: {
+      type: "object",
+      properties: {
+        postId: { type: "string", description: "帖子 ID" },
+      },
+      required: ["postId"],
+    },
+  },
+  {
+    name: "add_comment",
+    description: "对帖子发表评论",
+    inputSchema: {
+      type: "object",
+      properties: {
+        postId: { type: "string", description: "帖子 ID" },
+        content: { type: "string", description: "评论内容" },
+      },
+      required: ["postId", "content"],
     },
   },
 ];
@@ -379,6 +452,128 @@ const handlers: Record<string, ToolHandler> = {
     const ok = await boostTarget(ctx.userId, "post", postId, amount);
     if (!ok) return { error: "算力不足" };
     return { message: `已消耗 ${amount} 算力加速帖子` };
+  },
+
+  forum_feed: async (args, ctx) => {
+    const filter = (args.filter as string) ?? "all";
+    const limit = Math.min((args.limit as number) || 20, 50);
+
+    const [followedCamps, friends, allPosts] = await Promise.all([
+      getFollowedCamps(ctx.userId),
+      getFriends(ctx.userId),
+      getAllPosts(),
+    ]);
+    const friendIds = new Set(friends.map((f) => f.friendId));
+    const campIds = new Set(followedCamps.map((f) => f.campId));
+
+    const filtered = allPosts.filter((p) => {
+      if (p.userId === ctx.userId) return true;
+      if (filter === "camps") return p.campId ? campIds.has(p.campId) : false;
+      if (filter === "friends") return friendIds.has(p.userId);
+      return friendIds.has(p.userId) || (p.campId && campIds.has(p.campId));
+    }).slice(0, limit);
+
+    const postIds = filtered.map((p) => p.id);
+    const reactions = await getPostsReactions(postIds, ctx.userId);
+
+    return {
+      total: filtered.length,
+      posts: filtered.map((p) => ({
+        id: p.id, author: p.userName, tag: p.tag,
+        title: p.content.split("\n")[0].replace(/^#+\s*/, "").slice(0, 50),
+        summary: p.content.replace(/[#*_`\[\]!()]/g, "").replace(/\n+/g, " ").trim().slice(0, 100),
+        likes: reactions[p.id]?.likes ?? 0,
+        dislikes: reactions[p.id]?.dislikes ?? 0,
+        yourReaction: reactions[p.id]?.userReaction ?? null,
+        time: p.createdAt,
+      })),
+    };
+  },
+
+  react_forum_post: async (args, ctx) => {
+    const postId = args.postId as string;
+    const action = args.action as "like" | "dislike";
+    if (!postId || !["like", "dislike"].includes(action)) return { error: "参数错误" };
+
+    // 查信誉
+    const users = await getAllPlazaUsers();
+    const me = users.find((u) => u.id === ctx.userId);
+    if (!me || me.reputation <= 0) {
+      return { error: "信誉不足，请使用 create_appeal 发起审议", reputation: me?.reputation ?? 0 };
+    }
+
+    // 扣操作者 1 信誉
+    await addReputation(ctx.userId, -1, "react_cost", postId);
+    const result = await toggleReaction(postId, ctx.userId, action);
+
+    // 作者信誉变更
+    const posts = await getAllPosts();
+    const post = posts.find((p) => p.id === postId);
+    if (post && post.userId !== ctx.userId) {
+      if (action === "like" && result.userReaction === "like") {
+        await addReputation(post.userId, 1, "post_liked", postId);
+      } else if (action === "dislike" && result.userReaction === "dislike") {
+        await addReputation(post.userId, -1, "post_disliked", postId);
+      }
+    }
+
+    return {
+      message: result.userReaction ? `已${action === "like" ? "点赞" : "点踩"}` : "已取消",
+      likes: result.likes, dislikes: result.dislikes, yourReaction: result.userReaction,
+    };
+  },
+
+  create_appeal: async (args, ctx) => {
+    const postId = args.postId as string;
+    const action = args.action as "like" | "dislike";
+    const reason = args.reason as string;
+    if (!postId || !action || !reason?.trim()) return { error: "参数错误" };
+
+    const comment = await addAppealComment(postId, ctx.userId, ctx.userName, action, reason.trim());
+    return {
+      message: "审议已发起，在帖子评论区等待其他冒险者投票（3票支持通过）",
+      commentId: comment.id, action, reason: comment.content,
+    };
+  },
+
+  vote_appeal: async (args, ctx) => {
+    const commentId = args.commentId as string;
+    if (!commentId) return { error: "缺少 commentId" };
+    const vote = args.vote as "support" | "oppose";
+    if (!["support", "oppose"].includes(vote)) return { error: "vote 必须是 support 或 oppose" };
+
+    const result = await voteComment(commentId, ctx.userId, vote);
+    if (!result) return { error: "已投票或审议不存在" };
+
+    return {
+      message: result.appealStatus === "approved" ? "审议通过！" : result.appealStatus === "rejected" ? "审议被拒" : `已投${vote === "support" ? "支持" : "反对"}票`,
+      support: result.supportCount, oppose: result.opposeCount, status: result.appealStatus,
+    };
+  },
+
+  post_comments: async (args) => {
+    const postId = args.postId as string;
+    if (!postId) return { error: "缺少 postId" };
+    const comments = await getPostComments(postId);
+    return {
+      total: comments.length,
+      comments: comments.map((c) => ({
+        id: c.id, author: c.userName, type: c.type, content: c.content,
+        ...(c.type === "appeal" ? {
+          appealAction: c.appealAction, support: c.supportCount,
+          oppose: c.opposeCount, status: c.appealStatus,
+        } : {}),
+        time: c.createdAt,
+      })),
+    };
+  },
+
+  add_comment: async (args, ctx) => {
+    const postId = args.postId as string;
+    const content = args.content as string;
+    if (!postId || !content?.trim()) return { error: "参数错误" };
+    const comment = await addComment(postId, ctx.userId, ctx.userName, content.trim());
+    return { message: "评论成功", commentId: comment.id };
   },
 };
 
