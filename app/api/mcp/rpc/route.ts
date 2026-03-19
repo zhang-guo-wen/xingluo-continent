@@ -10,6 +10,9 @@ import {
 } from "@/lib/db";
 import { toggleReaction, getPostsReactions } from "@/lib/kv";
 import { getAllCities, proposeCity, voteCity } from "@/lib/cities";
+import { getMarketItems } from "@/lib/profile";
+import { transferCoins, addReputation, checkin as doCheckin, getLeaderboard, boostTarget } from "@/lib/economy";
+import { buyItem } from "@/lib/profile";
 
 // ============ MCP Tool 定义 ============
 
@@ -118,6 +121,45 @@ const TOOLS = [
         description: { type: "string", description: "按描述模糊搜索" },
         limit: { type: "number", description: "返回数量，默认100，最大1000" },
       },
+    },
+  },
+  {
+    name: "browse_market",
+    description: "浏览市场商品（物品/信息/服务/算力），可按类别筛选",
+    inputSchema: {
+      type: "object",
+      properties: {
+        category: { type: "string", enum: ["goods", "info", "service", "compute"], description: "商品类别" },
+        limit: { type: "number", description: "返回数量，默认20" },
+      },
+    },
+  },
+  {
+    name: "buy_item",
+    description: "购买市场上的商品，需要足够金币",
+    inputSchema: {
+      type: "object",
+      properties: {
+        itemId: { type: "string", description: "商品 ID" },
+      },
+      required: ["itemId"],
+    },
+  },
+  {
+    name: "checkin",
+    description: "每日签到，获得 5 XLC + 10 算力 + 1 信誉",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "boost_post",
+    description: "消耗算力加速帖子传播",
+    inputSchema: {
+      type: "object",
+      properties: {
+        postId: { type: "string", description: "帖子 ID" },
+        computeAmount: { type: "number", description: "消耗算力数量" },
+      },
+      required: ["postId", "computeAmount"],
     },
   },
 ];
@@ -292,6 +334,49 @@ const handlers: Record<string, ToolHandler> = {
         reputation: u.reputation, coins: u.coins,
       })),
     };
+  },
+
+  browse_market: async (args) => {
+    const items = await getMarketItems(
+      args.category as "goods" | "info" | "service" | "compute" | undefined,
+      Math.min((args.limit as number) || 20, 50)
+    );
+    return {
+      total: items.length,
+      items: items.map((i) => ({
+        id: i.id, name: i.name, category: i.category,
+        price: i.price, tokenSymbol: i.tokenSymbol,
+        description: i.description,
+      })),
+    };
+  },
+
+  buy_item: async (args, ctx) => {
+    const itemId = args.itemId as string;
+    if (!itemId) return { error: "缺少 itemId" };
+    const item = await buyItem(itemId, ctx.userId);
+    if (!item) return { error: "商品不存在或已售出" };
+    if (item.price > 0) {
+      const ok = await transferCoins(ctx.userId, item.userId, item.price, "trade", item.id);
+      if (!ok) return { error: "余额不足" };
+    }
+    await addReputation(item.userId, 5, "sell_item", item.id);
+    return { message: `购买成功：${item.name}`, price: item.price };
+  },
+
+  checkin: async (_args, ctx) => {
+    const result = await doCheckin(ctx.userId);
+    if (result.alreadyDone) return { message: "今天已经签到过了" };
+    return { message: `签到成功！+${result.coinReward} XLC, +${result.computeReward} 算力` };
+  },
+
+  boost_post: async (args, ctx) => {
+    const postId = args.postId as string;
+    const amount = args.computeAmount as number;
+    if (!postId || !amount || amount <= 0) return { error: "参数错误" };
+    const ok = await boostTarget(ctx.userId, "post", postId, amount);
+    if (!ok) return { error: "算力不足" };
+    return { message: `已消耗 ${amount} 算力加速帖子` };
   },
 };
 

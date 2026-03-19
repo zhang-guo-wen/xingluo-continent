@@ -17,6 +17,7 @@ import PostFeed from "./components/PostFeed";
 import MemberList from "./components/MemberList";
 import ProfileView from "./components/ProfileView";
 import LeaderboardView from "./components/LeaderboardView";
+import MarketView from "./components/MarketView";
 
 // 弹窗
 import PostModal from "./components/modals/PostModal";
@@ -240,8 +241,8 @@ export default function PlazaClient() {
       {/* === 动态 === */}
       {menuTab === "posts" && <PostFeed posts={posts} onReact={handleReact} />}
 
-      {/* === 成员 === */}
-      {menuTab === "members" && <MemberList users={users} />}
+      {/* === 市场 === */}
+      {menuTab === "market" && <MarketView currentUserId={currentUser?.id} onBuy={() => fetchAll(currentUser?.id)} />}
 
       {/* === 排行 === */}
       {menuTab === "rank" && <LeaderboardView currentUserId={currentUser?.id} />}
