@@ -31,8 +31,8 @@ export async function POST(
   const post = posts.find((p) => p.id === postId);
   if (post && post.userId !== userId) {
     if (action === "like" && result.userReaction === "like") {
-      // 点赞：作者 +1 信誉, +1 XLC
-      addReputation(post.userId, 1, "post_liked", postId).catch(() => {});
+      // 点赞：作者 -1 信誉（所有投票行为都消耗作者信誉）
+      addReputation(post.userId, -1, "post_liked", postId).catch(() => {});
       mintCoins(post.userId, 1, "like_reward", "帖子被点赞").catch(() => {});
     } else if (action === "dislike" && result.userReaction === "dislike") {
       // 点踩：作者 -1 信誉
