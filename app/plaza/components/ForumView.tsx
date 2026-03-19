@@ -16,6 +16,7 @@ interface Props {
   currentUserId: string;
   currentUserName: string;
   currentUserAvatar: string | null;
+  currentReputation: number;
   campId: string;
   onReact: (postId: string, action: ReactionType) => void;
 }
@@ -30,11 +31,15 @@ function getTitle(content: string): string {
   return first.length > 40 ? first.slice(0, 40) + "..." : first || "无标题";
 }
 
-export default function ForumView({ currentUserId, currentUserName, currentUserAvatar, campId, onReact }: Props) {
+export default function ForumView({ currentUserId, currentUserName, currentUserAvatar, currentReputation, campId, onReact }: Props) {
   const [posts, setPosts] = useState<PlazaPostWithReactions[]>([]);
   const [filter, setFilter] = useState<"all" | "camps" | "friends">("all");
   const [viewingPost, setViewingPost] = useState<PlazaPostWithReactions | null>(null);
   const [showCompose, setShowCompose] = useState(false);
+  // 信誉审议弹窗
+  const [appealTarget, setAppealTarget] = useState<{ postId: string; action: ReactionType } | null>(null);
+  const [appealReason, setAppealReason] = useState("");
+  const [appealSubmitting, setAppealSubmitting] = useState(false);
   const [content, setContent] = useState("");
   const [selectedTag, setSelectedTag] = useState<PostTag | null>(null);
   const [posting, setPosting] = useState(false);
@@ -78,6 +83,13 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
   }
 
   function react(postId: string, action: ReactionType) {
+    // 信誉 <= 0：弹审议弹窗
+    if (currentReputation <= 0) {
+      setAppealTarget({ postId, action });
+      setAppealReason("");
+      return;
+    }
+    // 信誉 > 0：直接操作（扣 1 信誉在后端处理）
     onReact(postId, action);
     const upd = (list: PlazaPostWithReactions[]) => list.map((p) => {
       if (p.id !== postId) return p;
@@ -87,6 +99,22 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
     });
     setPosts(upd);
     if (viewingPost?.id === postId) setViewingPost((v) => v ? upd([v])[0] : null);
+  }
+
+  async function submitAppeal() {
+    if (!appealTarget || !appealReason.trim()) return;
+    setAppealSubmitting(true);
+    try {
+      await api.createAppeal({
+        userId: currentUserId, userName: currentUserName,
+        targetPostId: appealTarget.postId, action: appealTarget.action,
+        reason: appealReason.trim(),
+      });
+      setAppealTarget(null);
+      alert("审议已提交，等待其他冒险者投票");
+    } finally {
+      setAppealSubmitting(false);
+    }
   }
 
   return (
@@ -225,6 +253,38 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
                 {posting ? "发布中..." : "发布"}</button>
               <button className="pixel-btn" onClick={() => setShowCompose(false)}>取消</button>
             </div>
+          </div>
+        </ModalOverlay>
+      )}
+      {/* 信誉审议弹窗 */}
+      {appealTarget && (
+        <ModalOverlay onClose={() => setAppealTarget(null)}>
+          <div className="pixel-font mb-3" style={{ fontSize: 14, color: "var(--pixel-accent)" }}>
+            ⚠️ 信誉不足
+          </div>
+          <div style={{ fontSize: 13, color: "var(--pixel-muted)", marginBottom: 8, lineHeight: 1.6 }}>
+            你的信誉分为 {currentReputation}，不能直接{appealTarget.action === "like" ? "点赞" : "点踩"}。
+            你可以发起审议，说明理由。当 3 位冒险者支持你时，操作将自动执行。
+            若反对票更多，你将被扣除信誉分。
+          </div>
+          <div style={{ fontSize: 12, color: "var(--pixel-text)", marginBottom: 8 }}>
+            你想要：<span style={{ color: appealTarget.action === "like" ? "var(--pixel-blue)" : "var(--pixel-accent)", fontWeight: "bold" }}>
+              {appealTarget.action === "like" ? "👍 点赞" : "👎 点踩"}
+            </span>
+          </div>
+          <textarea
+            className="pixel-textarea mb-3"
+            rows={3}
+            placeholder="请说明你的理由..."
+            value={appealReason}
+            onChange={(e) => setAppealReason(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button className="pixel-btn pixel-btn-accent" onClick={submitAppeal}
+              disabled={appealSubmitting || !appealReason.trim()}>
+              {appealSubmitting ? "提交中..." : "发起审议"}
+            </button>
+            <button className="pixel-btn" onClick={() => setAppealTarget(null)}>取消</button>
           </div>
         </ModalOverlay>
       )}

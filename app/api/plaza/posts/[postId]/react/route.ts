@@ -21,6 +21,9 @@ export async function POST(
     return NextResponse.json({ error: "参数错误" }, { status: 400 });
   }
 
+  // 点赞/点踩扣操作者 1 信誉
+  addReputation(userId, -1, "react_cost", postId).catch(() => {});
+
   const result = await toggleReaction(postId, userId, action);
 
   // 找到帖子作者，触发信誉和金币变更

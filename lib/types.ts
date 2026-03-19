@@ -273,6 +273,21 @@ export interface EventComment {
   createdAt: string;
 }
 
+// ============ 信誉审议（信誉为 0 时的投票请求） ============
+
+export interface ReputationAppeal {
+  id: string;
+  userId: string;
+  userName: string;
+  targetPostId: string;
+  action: "like" | "dislike";  // 想要执行的操作
+  reason: string;               // 理由
+  supportCount: number;
+  opposeCount: number;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+}
+
 // ============ 搜索 ============
 
 export interface UserSearchParams {

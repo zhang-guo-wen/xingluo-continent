@@ -269,6 +269,7 @@ export default function PlazaClient() {
           currentUserId={currentUser.id}
           currentUserName={currentUser.name}
           currentUserAvatar={currentUser.avatarUrl}
+          currentReputation={currentUser.reputation}
           campId={myCampId}
           onReact={handleReact}
         />

@@ -5,7 +5,7 @@ import type {
   UserSkill, UserItem, UserTask, ItemCategory, TaskStatus, UserSearchParams,
   Transaction, CheckinResult, LeaderboardType,
   UserEvent, EventComment,
-  Camp, CampVisibility, CampFollow, UserFriend,
+  Camp, CampVisibility, CampFollow, UserFriend, ReputationAppeal,
 } from "./types";
 
 // ============ 通用 ============
@@ -169,6 +169,22 @@ export async function createTask(body: {
 
 export async function updateTaskStatus(taskId: string, userId: string, status: TaskStatus, assigneeId?: string): Promise<void> {
   await post("/api/profile/tasks", { action: "updateStatus", taskId, userId, status, assigneeId });
+}
+
+// ============ 信誉审议 ============
+
+export async function createAppeal(body: {
+  userId: string; userName: string; targetPostId: string; action: "like" | "dislike"; reason: string;
+}): Promise<ReputationAppeal> {
+  return (await post<{ appeal: ReputationAppeal }>("/api/appeals", body)).appeal;
+}
+
+export async function fetchPendingAppeals(): Promise<ReputationAppeal[]> {
+  return (await get<{ appeals: ReputationAppeal[] }>("/api/appeals")).appeals;
+}
+
+export async function voteAppeal(appealId: string, userId: string, vote: "support" | "oppose") {
+  return post<{ appeal: ReputationAppeal }>(`/api/appeals/${appealId}/vote`, { userId, vote });
 }
 
 // ============ 论坛（聚合 feed） ============
