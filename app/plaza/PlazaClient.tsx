@@ -14,7 +14,7 @@ import UserSidebar from "./components/UserSidebar";
 import UserBlock from "./components/UserBlock";
 import NpcBlock from "./components/NpcBlock";
 import PostFeed from "./components/PostFeed";
-import MemberList from "./components/MemberList";
+import UserSearchPanel from "./components/UserSearchPanel";
 import ProfileView from "./components/ProfileView";
 import LeaderboardView from "./components/LeaderboardView";
 import MarketView from "./components/MarketView";
@@ -243,6 +243,9 @@ export default function PlazaClient() {
 
       {/* === 市场 === */}
       {menuTab === "market" && <MarketView currentUserId={currentUser?.id} onBuy={() => fetchAll(currentUser?.id)} />}
+
+      {/* === 搜索 === */}
+      {menuTab === "search" && <UserSearchPanel />}
 
       {/* === 排行 === */}
       {menuTab === "rank" && <LeaderboardView currentUserId={currentUser?.id} />}
