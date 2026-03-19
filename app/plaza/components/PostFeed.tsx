@@ -10,10 +10,9 @@ interface Props {
   onReact: (postId: string, action: ReactionType) => void;
   onPost?: (content: string) => Promise<void>;
   campId?: string;
-  cityId?: string;
 }
 
-export default function PostFeed({ posts, onReact, onPost, campId, cityId }: Props) {
+export default function PostFeed({ posts, onReact, onPost, campId }: Props) {
   const [sort, setSort] = useState<"new" | "hot">("new");
   const [newContent, setNewContent] = useState("");
   const [posting, setPosting] = useState(false);
@@ -23,8 +22,7 @@ export default function PostFeed({ posts, onReact, onPost, campId, cityId }: Pro
   // Gun.js P2P 订阅（按营地+城市隔离）
   useEffect(() => {
     const cId = campId ?? "camp_default";
-    const ctId = cityId ?? "xingluo";
-    const unsub = gunSubscribePosts(cId, ctId, (post) => {
+    const unsub = gunSubscribePosts(cId, (post) => {
       setP2pStatus("connected");
       setGunPosts((prev) => {
         const next = new Map(prev);
@@ -35,7 +33,7 @@ export default function PostFeed({ posts, onReact, onPost, campId, cityId }: Pro
     // 连接后标记
     const timer = setTimeout(() => setP2pStatus("connected"), 3000);
     return () => { unsub(); clearTimeout(timer); };
-  }, [campId, cityId]);
+  }, [campId]);
 
   // 合并 Postgres 帖子 + Gun P2P 帖子（去重）
   const mergedPosts = (() => {
