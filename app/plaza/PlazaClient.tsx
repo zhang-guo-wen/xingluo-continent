@@ -5,6 +5,7 @@ import type { PlazaUser, PlazaPostWithReactions, City, Camp, ReactionType } from
 import { hashStr } from "@/lib/utils";
 import * as api from "@/lib/api";
 import { MAX_USERS } from "./constants";
+import { gunPublishPost } from "@/lib/gun";
 
 import GameMenu, { type MenuTab } from "./components/GameMenu";
 import MapGrid from "./components/MapGrid";
@@ -96,7 +97,12 @@ export default function PlazaClient() {
 
   async function handlePost(content: string) {
     if (!currentUser) return;
-    await api.createPost({ userId: currentUser.id, userName: currentUser.name, userAvatar: currentUser.avatarUrl, content });
+    const { post } = await api.createPost({ userId: currentUser.id, userName: currentUser.name, userAvatar: currentUser.avatarUrl, content });
+    // 同时广播到 Gun P2P 网络
+    gunPublishPost({
+      id: post.id, userId: post.userId, userName: post.userName,
+      userAvatar: post.userAvatar, content: post.content, createdAt: post.createdAt,
+    });
     fetchAll(currentUser.id);
   }
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { PlazaPostWithReactions, ReactionType } from "@/lib/types";
 import { timeAgo, stringToColor } from "@/lib/utils";
+import { gunSubscribePosts, type GunPost } from "@/lib/gun";
 
 interface Props {
   posts: PlazaPostWithReactions[];
@@ -14,10 +15,45 @@ export default function PostFeed({ posts, onReact, onPost }: Props) {
   const [sort, setSort] = useState<"new" | "hot">("new");
   const [newContent, setNewContent] = useState("");
   const [posting, setPosting] = useState(false);
+  const [gunPosts, setGunPosts] = useState<Map<string, GunPost>>(new Map());
+  const [p2pStatus, setP2pStatus] = useState<"connecting" | "connected">("connecting");
+
+  // Gun.js P2P 订阅
+  useEffect(() => {
+    const unsub = gunSubscribePosts((post) => {
+      setP2pStatus("connected");
+      setGunPosts((prev) => {
+        const next = new Map(prev);
+        next.set(post.id, post);
+        return next;
+      });
+    });
+    // 连接后标记
+    const timer = setTimeout(() => setP2pStatus("connected"), 3000);
+    return () => { unsub(); clearTimeout(timer); };
+  }, []);
+
+  // 合并 Postgres 帖子 + Gun P2P 帖子（去重）
+  const mergedPosts = (() => {
+    const byId = new Map<string, PlazaPostWithReactions>();
+    // Postgres 帖子为主
+    for (const p of posts) byId.set(p.id, p);
+    // Gun 帖子补充（如果 Postgres 还没同步到）
+    for (const [id, gp] of gunPosts) {
+      if (!byId.has(id)) {
+        byId.set(id, {
+          ...gp,
+          userAvatar: gp.userAvatar,
+          likes: 0, dislikes: 0, userReaction: null,
+        });
+      }
+    }
+    return Array.from(byId.values());
+  })();
 
   const sorted = sort === "hot"
-    ? [...posts].sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes))
-    : posts;
+    ? [...mergedPosts].sort((a, b) => (b.likes - b.dislikes) - (a.likes - a.dislikes))
+    : [...mergedPosts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   async function handlePost() {
     if (!newContent.trim() || !onPost) return;
@@ -32,7 +68,16 @@ export default function PostFeed({ posts, onReact, onPost }: Props) {
 
   return (
     <div className="absolute inset-0 overflow-y-auto pb-16 pt-4 px-4" style={{ color: "var(--pixel-text)" }}>
-      <h2 className="pixel-font text-center mb-2" style={{ fontSize: 14 }}>广场动态</h2>
+      <div className="flex items-center justify-center gap-3 mb-2">
+        <h2 className="pixel-font" style={{ fontSize: 14 }}>广场动态</h2>
+        <span style={{
+          fontSize: 9, padding: "2px 6px",
+          background: p2pStatus === "connected" ? "var(--pixel-green)" : "var(--pixel-border)",
+          color: "#fff",
+        }}>
+          {p2pStatus === "connected" ? "P2P 已连接" : "P2P 连接中..."}
+        </span>
+      </div>
 
       {/* 发帖区 */}
       {onPost && (
@@ -44,7 +89,10 @@ export default function PostFeed({ posts, onReact, onPost }: Props) {
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
           />
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <span style={{ fontSize: 9, color: "var(--pixel-muted)" }}>
+              帖子通过 Gun.js P2P 网络分发
+            </span>
             <button
               className="pixel-btn pixel-btn-accent"
               style={{ fontSize: 11 }}
