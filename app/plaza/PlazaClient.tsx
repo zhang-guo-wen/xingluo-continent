@@ -83,10 +83,13 @@ export default function PlazaClient() {
   const visibleOthers = shuffled.slice(0, MAX_USERS - 1);
   const allVisible = currentUser ? [currentUser, ...visibleOthers] : visibleOthers;
 
-  // 当前用户的营地
-  const myCamp = camps.find((c) => c.id === currentUser?.campId) ?? camps[0];
-  // 只显示同营地的用户（闲逛模式看所有人但不占位）
-  const campUsers = allVisible.filter((u) => u.campId === myCamp?.id);
+  // 当前用户的营地（campId 为 null 视为默认营地）
+  const myCampId = currentUser?.campId ?? "camp_default";
+  const myCamp = camps.find((c) => c.id === myCampId) ?? camps[0] ?? null;
+  // 只显示同营地的用户；无营地数据时显示所有人
+  const campUsers = myCamp
+    ? allVisible.filter((u) => (u.campId ?? "camp_default") === myCampId)
+    : allVisible;
   const votingZones = zones.filter((z) => z.status === "voting");
 
   // ============ 回调 ============
@@ -132,7 +135,7 @@ export default function PlazaClient() {
         <>
           <UserSidebar
             users={campUsers.filter((u) => u.id !== currentUser?.id)}
-            totalCount={campUsers.length - (currentUser ? 1 : 0)}
+            totalCount={Math.max(0, campUsers.length - (currentUser ? 1 : 0))}
             selectedUserId={selectedUser?.id ?? null}
             onSelectUser={setSelectedUser}
             onRefresh={() => { setVisibleSeed((s) => s + 1); setSelectedUser(null); }}
