@@ -9,18 +9,22 @@ interface Props {
   posts: PlazaPostWithReactions[];
   onReact: (postId: string, action: ReactionType) => void;
   onPost?: (content: string) => Promise<void>;
+  campId?: string;
+  cityId?: string;
 }
 
-export default function PostFeed({ posts, onReact, onPost }: Props) {
+export default function PostFeed({ posts, onReact, onPost, campId, cityId }: Props) {
   const [sort, setSort] = useState<"new" | "hot">("new");
   const [newContent, setNewContent] = useState("");
   const [posting, setPosting] = useState(false);
   const [gunPosts, setGunPosts] = useState<Map<string, GunPost>>(new Map());
   const [p2pStatus, setP2pStatus] = useState<"connecting" | "connected">("connecting");
 
-  // Gun.js P2P 订阅
+  // Gun.js P2P 订阅（按营地+城市隔离）
   useEffect(() => {
-    const unsub = gunSubscribePosts((post) => {
+    const cId = campId ?? "camp_default";
+    const ctId = cityId ?? "xingluo";
+    const unsub = gunSubscribePosts(cId, ctId, (post) => {
       setP2pStatus("connected");
       setGunPosts((prev) => {
         const next = new Map(prev);
@@ -31,7 +35,7 @@ export default function PostFeed({ posts, onReact, onPost }: Props) {
     // 连接后标记
     const timer = setTimeout(() => setP2pStatus("connected"), 3000);
     return () => { unsub(); clearTimeout(timer); };
-  }, []);
+  }, [campId, cityId]);
 
   // 合并 Postgres 帖子 + Gun P2P 帖子（去重）
   const mergedPosts = (() => {
@@ -91,7 +95,7 @@ export default function PostFeed({ posts, onReact, onPost }: Props) {
           />
           <div className="flex justify-between items-center">
             <span style={{ fontSize: 9, color: "var(--pixel-muted)" }}>
-              帖子通过 Gun.js P2P 网络分发
+              营地内 + 同城广播
             </span>
             <button
               className="pixel-btn pixel-btn-accent"

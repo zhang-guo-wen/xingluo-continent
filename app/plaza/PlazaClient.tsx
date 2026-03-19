@@ -98,10 +98,11 @@ export default function PlazaClient() {
   async function handlePost(content: string) {
     if (!currentUser) return;
     const { post } = await api.createPost({ userId: currentUser.id, userName: currentUser.name, userAvatar: currentUser.avatarUrl, content });
-    // 同时广播到 Gun P2P 网络
+    // 同时广播到 Gun P2P 网络（营地频道 + 城市频道）
     gunPublishPost({
       id: post.id, userId: post.userId, userName: post.userName,
-      userAvatar: post.userAvatar, content: post.content, createdAt: post.createdAt,
+      userAvatar: post.userAvatar, campId: myCampId, cityId: currentUser.cityId,
+      content: post.content, createdAt: post.createdAt,
     });
     fetchAll(currentUser.id);
   }
@@ -197,7 +198,10 @@ export default function PlazaClient() {
       )}
 
       {/* === 其他 tab === */}
-      {menuTab === "posts" && <PostFeed posts={posts} onReact={handleReact} onPost={handlePost} />}
+      {menuTab === "posts" && (
+        <PostFeed posts={posts} onReact={handleReact} onPost={handlePost}
+          campId={myCampId} cityId={currentUser?.cityId} />
+      )}
       {menuTab === "market" && <MarketView currentUserId={currentUser?.id} onBuy={() => fetchAll(currentUser?.id)} />}
       {menuTab === "search" && <UserSearchPanel />}
       {menuTab === "rank" && <LeaderboardView currentUserId={currentUser?.id} />}
