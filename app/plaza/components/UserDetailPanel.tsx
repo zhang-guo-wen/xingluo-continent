@@ -1,23 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PlazaUser, UserSkill, PlazaPostWithReactions } from "@/lib/types";
+import type { PlazaUser, UserSkill, PlazaPostWithReactions, UserEvent } from "@/lib/types";
 import { timeAgo } from "@/lib/utils";
 import * as api from "@/lib/api";
 import PixelAvatar from "./PixelAvatar";
 
 interface Props {
   user: PlazaUser;
+  currentUserId?: string;
+  currentUserName?: string;
   onClose: () => void;
 }
 
-export default function UserDetailPanel({ user, onClose }: Props) {
+export default function UserDetailPanel({ user, onClose, currentUserId, currentUserName }: Props) {
   const [skills, setSkills] = useState<UserSkill[]>([]);
   const [posts, setPosts] = useState<PlazaPostWithReactions[]>([]);
+  const [events, setEvents] = useState<UserEvent[]>([]);
 
   useEffect(() => {
     api.fetchSkills(user.id).then(setSkills).catch(() => {});
     api.fetchPosts(user.id).then((all) => setPosts(all.filter((p) => p.userId === user.id).slice(0, 5))).catch(() => {});
+    api.fetchUserEvents(user.id, 10).then(setEvents).catch(() => {});
   }, [user.id]);
 
   return (
@@ -111,6 +115,22 @@ export default function UserDetailPanel({ user, onClose }: Props) {
                   <span>👍 {p.likes}</span>
                   <span>👎 {p.dislikes}</span>
                   <span style={{ marginLeft: "auto" }}>{timeAgo(p.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* 最近事件 */}
+        {events.length > 0 && (
+          <div className="mt-4">
+            <div className="pixel-font mb-2" style={{ fontSize: 9, color: "var(--pixel-gold)" }}>最近事件</div>
+            {events.map((evt) => (
+              <div key={evt.id} className="pixel-border p-2 mb-1" style={{ background: "var(--pixel-bg)" }}>
+                <div style={{ fontSize: 10, color: "var(--pixel-text)" }}>{evt.detail}</div>
+                <div className="flex gap-2 mt-1" style={{ fontSize: 8, color: "var(--pixel-muted)" }}>
+                  <span>🔗 {evt.hash.slice(0, 8)}...</span>
+                  <span>👍{evt.likes} 👎{evt.dislikes}</span>
+                  <span style={{ marginLeft: "auto" }}>{timeAgo(evt.createdAt)}</span>
                 </div>
               </div>
             ))}

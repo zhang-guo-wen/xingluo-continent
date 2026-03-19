@@ -3,6 +3,7 @@ import { getValidAccessToken } from "@/lib/auth";
 import { toggleReaction } from "@/lib/kv";
 import { getAllPosts } from "@/lib/db";
 import { addReputation, mintCoins } from "@/lib/economy";
+import { recordEvent } from "@/lib/events";
 import type { ReactionType } from "@/lib/types";
 
 export async function POST(
@@ -14,7 +15,7 @@ export async function POST(
 
   const { postId } = await params;
   const body = await request.json();
-  const { userId, action } = body as { userId: string; action: ReactionType };
+  const { userId, userName, action } = body as { userId: string; userName?: string; action: ReactionType };
 
   if (!userId || !["like", "dislike"].includes(action)) {
     return NextResponse.json({ error: "参数错误" }, { status: 400 });
@@ -34,6 +35,16 @@ export async function POST(
       // 点踩：作者 -1 信誉
       addReputation(post.userId, -1, "post_disliked", postId).catch(() => {});
     }
+  }
+
+  // 记录事件
+  const uName = userName ?? "用户";
+  if (action === "like") {
+    if (result.userReaction === "like") recordEvent(userId, uName, "like_post", `点赞了帖子`, postId).catch(() => {});
+    else recordEvent(userId, uName, "unlike_post", `取消了帖子点赞`, postId).catch(() => {});
+  } else {
+    if (result.userReaction === "dislike") recordEvent(userId, uName, "dislike_post", `点踩了帖子`, postId).catch(() => {});
+    else recordEvent(userId, uName, "undislike_post", `取消了帖子点踩`, postId).catch(() => {});
   }
 
   return NextResponse.json(result);

@@ -9,10 +9,12 @@ import EditProfileModal from "./modals/EditProfileModal";
 import SkillModal from "./modals/SkillModal";
 import ItemModal from "./modals/ItemModal";
 import TaskModal from "./modals/TaskModal";
+import EventFeed from "./EventFeed";
 
-type ProfileTab = "skills" | "posts" | "items" | "tasks" | "ledger";
+type ProfileTab = "events" | "skills" | "posts" | "items" | "tasks" | "ledger";
 
 const TABS: { key: ProfileTab; icon: string; label: string }[] = [
+  { key: "events", icon: "📜", label: "事件" },
   { key: "skills", icon: "🎯", label: "技能" },
   { key: "posts", icon: "📝", label: "消息" },
   { key: "items", icon: "🏪", label: "商品" },
@@ -153,6 +155,11 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
             </button>
           ))}
         </div>
+
+        {/* === 事件 === */}
+        {tab === "events" && (
+          <EventFeed userId={user.id} currentUserId={user.id} currentUserName={user.name} />
+        )}
 
         {/* === 技能 === */}
         {tab === "skills" && (

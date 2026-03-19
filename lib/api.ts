@@ -4,6 +4,7 @@ import type {
   PlazaUser, PlazaPostWithReactions, City, ReactionType, PostReactions,
   UserSkill, UserItem, UserTask, ItemCategory, TaskStatus, UserSearchParams,
   Transaction, CheckinResult, LeaderboardType,
+  UserEvent, EventComment,
 } from "./types";
 
 // ============ 通用 ============
@@ -182,4 +183,28 @@ export async function fetchLeaderboard(type: LeaderboardType): Promise<PlazaUser
 
 export async function boostTarget(userId: string, targetType: "post" | "item", targetId: string, computeAmount: number): Promise<void> {
   await post("/api/boost", { userId, targetType, targetId, computeAmount });
+}
+
+// ============ 事件系统 ============
+
+export async function fetchUserEvents(userId: string, limit = 50): Promise<UserEvent[]> {
+  return (await get<{ events: UserEvent[] }>(`/api/events?userId=${userId}&limit=${limit}`)).events;
+}
+
+export async function fetchAllEvents(limit = 100): Promise<UserEvent[]> {
+  return (await get<{ events: UserEvent[] }>(`/api/events?limit=${limit}`)).events;
+}
+
+export async function voteEvent(eventId: string, userId: string, vote: "like" | "dislike") {
+  return post<{ likes: number; dislikes: number; userVote: string | null }>(
+    `/api/events/${eventId}/vote`, { userId, vote }
+  );
+}
+
+export async function fetchEventComments(eventId: string): Promise<EventComment[]> {
+  return (await get<{ comments: EventComment[] }>(`/api/events/${eventId}/comments`)).comments;
+}
+
+export async function addEventComment(eventId: string, userId: string, userName: string, content: string): Promise<EventComment> {
+  return (await post<{ comment: EventComment }>(`/api/events/${eventId}/comments`, { userId, userName, content })).comment;
 }

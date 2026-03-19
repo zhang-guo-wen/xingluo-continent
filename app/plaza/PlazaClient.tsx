@@ -151,7 +151,8 @@ export default function PlazaClient() {
           </div>
 
           {selectedUser && (
-            <UserDetailPanel user={selectedUser} onClose={() => setSelectedUser(null)} />
+            <UserDetailPanel user={selectedUser} onClose={() => setSelectedUser(null)}
+              currentUserId={currentUser?.id} currentUserName={currentUser?.name} />
           )}
         </>
       )}

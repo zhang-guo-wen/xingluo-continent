@@ -182,6 +182,39 @@ export interface CheckinResult {
   computeReward: number;
 }
 
+// ============ 事件系统（防篡改） ============
+
+export type EventAction =
+  | "register" | "update_name" | "update_occupation" | "update_description" | "update_wallet"
+  | "add_skill" | "remove_skill"
+  | "create_post" | "like_post" | "unlike_post" | "dislike_post" | "undislike_post"
+  | "list_item" | "buy_item" | "remove_item"
+  | "create_task" | "complete_task" | "cancel_task"
+  | "checkin" | "boost" | "propose_city" | "vote_city";
+
+export interface UserEvent {
+  id: string;
+  userId: string;
+  userName: string;
+  action: EventAction;
+  detail: string;         // 人类可读的描述
+  refId: string | null;   // 关联对象 ID
+  hash: string;           // SHA256(prevHash + action + detail + timestamp) 防篡改链
+  prevHash: string;       // 上一条事件的 hash
+  likes: number;
+  dislikes: number;
+  createdAt: string;
+}
+
+export interface EventComment {
+  id: string;
+  eventId: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAt: string;
+}
+
 // ============ 搜索 ============
 
 export interface UserSearchParams {
