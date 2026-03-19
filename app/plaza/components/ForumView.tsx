@@ -280,6 +280,23 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
               onClick={handleAddComment}>发</button>
           </div>
         </div>
+
+        {/* 审议弹窗（详情页内） */}
+        {appealTarget && (
+          <ModalOverlay onClose={() => setAppealTarget(null)}>
+            <div className="pixel-font mb-3" style={{ fontSize: 14, color: "var(--pixel-accent)" }}>⚠️ 信誉不足</div>
+            <div style={{ fontSize: 13, color: "var(--pixel-muted)", marginBottom: 8, lineHeight: 1.6 }}>
+              信誉分 {currentReputation}，不能直接{appealTarget.action === "like" ? "点赞" : "点踩"}。说明理由发起审议，3人支持则通过。
+            </div>
+            <textarea className="pixel-textarea mb-3" rows={3} placeholder="理由..."
+              value={appealReason} onChange={(e) => setAppealReason(e.target.value)} />
+            <div className="flex gap-2">
+              <button className="pixel-btn pixel-btn-accent" onClick={submitAppeal} disabled={appealSubmitting || !appealReason.trim()}>
+                {appealSubmitting ? "提交中..." : "发起审议"}</button>
+              <button className="pixel-btn" onClick={() => setAppealTarget(null)}>取消</button>
+            </div>
+          </ModalOverlay>
+        )}
       </div>
     );
   }
