@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/patrol?secret=xingluo-patrol",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}
