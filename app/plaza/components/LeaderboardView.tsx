@@ -6,10 +6,10 @@ import * as api from "@/lib/api";
 import PixelAvatar from "./PixelAvatar";
 
 const TABS: { key: LeaderboardType; icon: string; label: string }[] = [
+  { key: "space_visits", icon: "🌐", label: "网站" },
   { key: "reputation", icon: "⭐", label: "信誉" },
   { key: "coins", icon: "🪙", label: "金币" },
   { key: "compute", icon: "⚡", label: "算力" },
-  { key: "space_visits", icon: "🚀", label: "空间" },
 ];
 
 const CROWNS = ["👑", "🥈", "🥉"];
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export default function LeaderboardView({ currentUserId }: Props) {
-  const [tab, setTab] = useState<LeaderboardType>("reputation");
+  const [tab, setTab] = useState<LeaderboardType>("space_visits");
   const [users, setUsers] = useState<PlazaUser[]>([]);
 
   useEffect(() => {
@@ -78,6 +78,13 @@ export default function LeaderboardView({ currentUserId }: Props) {
             <div style={{ fontSize: 14, color: "var(--pixel-gold)", fontWeight: "bold" }}>
               {getValue(user).toLocaleString()}
             </div>
+            {user.spaceUrl && (
+              <a href={user.spaceUrl} target="_blank" rel="noopener noreferrer"
+                className="pixel-btn pixel-btn-green"
+                style={{ fontSize: 9, padding: "3px 8px" }}>
+                🌐 进入
+              </a>
+            )}
           </div>
         ))}
         {users.length === 0 && (

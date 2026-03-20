@@ -80,8 +80,8 @@ export default function UserSidebar({ users, totalCount, selectedUserId, onSelec
             {user.spaceUrl && (
               <a href={user.spaceUrl} target="_blank" rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                style={{ fontSize: 8, color: "var(--pixel-blue)", textDecoration: "none", padding: "1px 4px", border: "1px solid var(--pixel-border)", borderRadius: 2 }}>
-                🚀
+                style={{ fontSize: 8, color: "var(--pixel-blue)", textDecoration: "none", padding: "2px 5px", border: "1px solid var(--pixel-border)", borderRadius: 3, whiteSpace: "nowrap" }}>
+                🌐 网站
               </a>
             )}
           </div>

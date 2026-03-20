@@ -11,9 +11,10 @@ import ItemModal from "./modals/ItemModal";
 import TaskModal from "./modals/TaskModal";
 import EventFeed from "./EventFeed";
 
-type ProfileTab = "events" | "skills" | "posts" | "items" | "tasks" | "ledger";
+type ProfileTab = "visitors" | "events" | "skills" | "posts" | "items" | "tasks" | "ledger";
 
 const TABS: { key: ProfileTab; icon: string; label: string }[] = [
+  { key: "visitors", icon: "👣", label: "访客" },
   { key: "events", icon: "📜", label: "事件" },
   { key: "skills", icon: "🎯", label: "技能" },
   { key: "posts", icon: "📝", label: "消息" },
@@ -53,6 +54,7 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
   const [showItemModal, setShowItemModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [visitors, setVisitors] = useState<{ visitorId: string; visitorName: string; visitedAt: string }[]>([]);
   const [checkinDone, setCheckinDone] = useState(false);
 
   useEffect(() => {
@@ -62,9 +64,10 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
     api.fetchUserItems(user.id).then(setItems).catch(() => {});
     api.fetchUserTasks(user.id).then(setTasks).catch(() => {});
     api.fetchTransactions(user.id).then(setTransactions).catch(() => {});
+    api.fetchSpaceVisitors(user.id).then(setVisitors).catch(() => {});
   }, [user.id]);
 
-  async function handleEditProfile(data: { name: string; occupation: string; description: string; walletAddress: string }) {
+  async function handleEditProfile(data: { name: string; occupation: string; description: string; walletAddress: string; spaceUrl: string }) {
     const updated = await api.updateProfile(user.id, data);
     setShowEditProfile(false);
     onUserUpdate?.(updated);
@@ -118,6 +121,12 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
                   💳 {user.walletAddress.slice(0, 6)}...{user.walletAddress.slice(-4)}
                 </div>
               )}
+              {user.spaceUrl && (
+                <a href={user.spaceUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ fontSize: 12, color: "var(--pixel-blue)", marginTop: 2, display: "block" }}>
+                  🌐 {user.spaceUrl.replace(/^https?:\/\//, "").slice(0, 30)}
+                </a>
+              )}
             </div>
           </div>
           <div className="flex gap-2 mt-4 flex-wrap">
@@ -155,6 +164,59 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
             </button>
           ))}
         </div>
+
+        {/* === 访客 === */}
+        {tab === "visitors" && (
+          <div>
+            <div className="flex justify-between items-center mb-3">
+              <span style={{ fontSize: 13 }}>网站访客 ({visitors.length})</span>
+              <span style={{ fontSize: 11, color: "var(--pixel-gold)" }}>👣 总访问 {user.spaceVisits ?? 0} 次</span>
+            </div>
+            {visitors.length === 0 ? (
+              <div className="pixel-border p-3 text-center" style={{ background: "var(--pixel-panel)", fontSize: 12, color: "var(--pixel-muted)" }}>
+                还没有访客
+              </div>
+            ) : (
+              visitors.map((v, i) => {
+                // 检查自己是否访问过这个访客的网站（简单标记）
+                const isMe = v.visitorId === user.id;
+                return (
+                  <div key={`${v.visitorId}-${i}`} className="pixel-border p-3 mb-2 flex items-center gap-3" style={{ background: "var(--pixel-panel)" }}>
+                    <div className="w-8 h-8 flex items-center justify-center shrink-0"
+                      style={{ background: "var(--pixel-border)", border: "1px solid var(--pixel-border)", fontSize: 14, borderRadius: 4 }}>
+                      {v.visitorName[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: 13 }}>{v.visitorName}</div>
+                      <div style={{ fontSize: 11, color: "var(--pixel-muted)" }}>{timeAgo(v.visitedAt)}</div>
+                    </div>
+                    {isMe ? (
+                      <span style={{ fontSize: 10, color: "var(--pixel-green)" }}>我自己</span>
+                    ) : (
+                      <button
+                        className="pixel-btn pixel-btn-green"
+                        style={{ fontSize: 9, padding: "3px 8px" }}
+                        onClick={async () => {
+                          // 查找访客的网站
+                          const users = await api.searchUsers({ name: v.visitorName, limit: 1 });
+                          const target = users.find((u) => u.id === v.visitorId);
+                          if (target?.spaceUrl) {
+                            await api.visitSpace(v.visitorId, user.id);
+                            window.open(target.spaceUrl, "_blank");
+                          } else {
+                            alert("该用户未设置网站");
+                          }
+                        }}
+                      >
+                        🌐 回访
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
 
         {/* === 事件 === */}
         {tab === "events" && (
@@ -325,6 +387,7 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
           initial={{
             name: user.name, occupation: user.occupation ?? "",
             description: user.description ?? "", walletAddress: user.walletAddress ?? "",
+            spaceUrl: user.spaceUrl ?? "",
           }}
           onSubmit={handleEditProfile}
           onClose={() => setShowEditProfile(false)}

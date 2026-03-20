@@ -20,6 +20,7 @@ import LeaderboardView from "./components/LeaderboardView";
 import MarketView from "./components/MarketView";
 
 import ZoneModal from "./components/modals/ZoneModal";
+import WebsiteModal from "./components/modals/WebsiteModal";
 import VoteModal from "./components/modals/VoteModal";
 import ZoneDetailModal from "./components/modals/ZoneDetailModal";
 
@@ -41,6 +42,7 @@ export default function PlazaClient() {
   const [selectedZone, setSelectedZone] = useState<City | null>(null);
   const [showZoneModal, setShowZoneModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
+  const [showWebsiteModal, setShowWebsiteModal] = useState(false);
 
   // ============ 数据 ============
 
@@ -57,7 +59,11 @@ export default function PlazaClient() {
     setCamps(c);
     if (userId) {
       const dbUser = u.find((x) => x.id === userId);
-      if (dbUser) setCurrentUser(dbUser);
+      if (dbUser) {
+        setCurrentUser(dbUser);
+        // 首次进入且未设置网站，弹窗引导
+        if (!dbUser.spaceUrl) setShowWebsiteModal(true);
+      }
     }
   }, []);
 
@@ -168,8 +174,8 @@ export default function PlazaClient() {
       {menuTab === "camp" && !isViewing && (
         <>
           <UserSidebar
-            users={campUsers.filter((u) => u.id !== currentUser?.id)}
-            totalCount={Math.max(0, campUsers.length - (currentUser ? 1 : 0))}
+            users={campUsers}
+            totalCount={campUsers.length}
             selectedUserId={selectedUser?.id ?? null}
             onSelectUser={setSelectedUser}
             onRefresh={() => { setVisibleSeed((s) => s + 1); setSelectedUser(null); }}
@@ -184,17 +190,12 @@ export default function PlazaClient() {
                 <div className="flex items-center gap-2">
                   {currentUser.spaceUrl && (
                     <a href={currentUser.spaceUrl} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 10, color: "var(--pixel-blue)", textDecoration: "none" }}>🚀 我的空间</a>
+                      style={{ fontSize: 10, color: "var(--pixel-blue)", textDecoration: "none" }}>🌐 我的网站</a>
                   )}
-                  <button
-                    className="pixel-btn"
-                    style={{ fontSize: 9, padding: "2px 8px" }}
-                    onClick={() => {
-                      const url = prompt("设置你的空间地址（URL）", currentUser.spaceUrl ?? "");
-                      if (url !== null) {
-                        api.updateProfile(currentUser.id, { spaceUrl: url || "" }).then((u) => setCurrentUser(u));
-                      }
-                    }}>⚙️ 空间</button>
+                  <button className="pixel-btn" style={{ fontSize: 9, padding: "2px 8px" }}
+                    onClick={() => setShowWebsiteModal(true)}>
+                    ⚙️ 设置网站
+                  </button>
                 </div>
               )}
             </div>
@@ -307,6 +308,17 @@ export default function PlazaClient() {
       <GameMenu active={menuTab} onChange={(t) => { setMenuTab(t); setSelectedUser(null); if (t !== "camp") exitViewing(); }} />
 
       {/* === 弹窗 === */}
+      {showWebsiteModal && currentUser && (
+        <WebsiteModal
+          currentUrl={currentUser.spaceUrl ?? ""}
+          onSubmit={async (url) => {
+            const u = await api.updateProfile(currentUser.id, { spaceUrl: url });
+            setCurrentUser(u);
+            setShowWebsiteModal(false);
+          }}
+          onClose={() => setShowWebsiteModal(false)}
+        />
+      )}
       {showZoneModal && <ZoneModal onSubmit={handleProposeZone} onClose={() => setShowZoneModal(false)} />}
       {showVoteModal && <VoteModal zones={votingZones} onVote={handleVote} onClose={() => setShowVoteModal(false)} />}
       {selectedZone && <ZoneDetailModal zone={selectedZone} onClose={() => setSelectedZone(null)} />}
