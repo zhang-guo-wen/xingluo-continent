@@ -8,8 +8,8 @@ import * as api from "@/lib/api";
 import ModalOverlay from "./modals/ModalOverlay";
 
 const POST_TAGS: PostTag[] = ["首发", "原创", "总结", "实践"];
-const TAG_COLORS: Record<PostTag, string> = {
-  "首发": "#e94560", "原创": "#6b8cff", "总结": "#4a9c5d", "实践": "#f0c040",
+const TAG_COLORS: Record<string, string> = {
+  "首发": "#e94560", "原创": "#6b8cff", "总结": "#4a9c5d", "实践": "#f0c040", "虚假的人类": "#9333ea",
 };
 
 interface Props {
@@ -58,7 +58,7 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
   // 发帖弹窗
   const [showCompose, setShowCompose] = useState(false);
   const [content, setContent] = useState("");
-  const [selectedTag, setSelectedTag] = useState<PostTag | null>(null);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [postPrice, setPostPrice] = useState("");
   const [posting, setPosting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -140,8 +140,10 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
     if (!content.trim()) return;
     setPosting(true);
     try {
-      await api.createPost({ userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, campId, tag: selectedTag ?? undefined, price: Number(postPrice) || 0, content });
-      setContent(""); setSelectedTag(null); setPostPrice(""); setShowCompose(false);
+      // 平台手动发帖自动加「虚假的人类」标签
+      const tags = [...selectedTags, "虚假的人类"];
+      await api.createPost({ userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, campId, tags, price: Number(postPrice) || 0, content });
+      setContent(""); setSelectedTags(new Set()); setPostPrice(""); setShowCompose(false);
       api.fetchForumPosts(currentUserId, filter).then(setPosts);
     } finally { setPosting(false); }
   }
@@ -201,11 +203,11 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
         <div className="flex-1 overflow-y-auto" style={{ padding: "16px 24px" }}>
           {/* 作者信息 */}
           <div className="flex items-center gap-2 mb-4">
-            {viewingPost.tag && (
-              <span style={{ fontSize: 10, padding: "2px 8px", color: "#fff", background: TAG_COLORS[viewingPost.tag as PostTag] ?? "var(--pixel-muted)" }}>
-                {viewingPost.tag}
+            {(viewingPost.tags ?? []).map((t) => (
+              <span key={t} style={{ fontSize: 10, padding: "2px 8px", color: "#fff", background: TAG_COLORS[t as PostTag] ?? "var(--pixel-muted)", borderRadius: 3, marginRight: 2 }}>
+                {t}
               </span>
-            )}
+            ))}
             <div className="w-8 h-8 flex items-center justify-center shrink-0"
               style={{ background: viewingPost.userAvatar ? "transparent" : stringToColor(viewingPost.userName), border: "1px solid var(--pixel-border)", fontSize: 14 }}>
               {viewingPost.userAvatar ? <img src={viewingPost.userAvatar} alt="" className="pixel-avatar w-full h-full object-cover" /> : viewingPost.userName[0]}
@@ -346,11 +348,11 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
             <div key={post.id} className="pixel-border p-3 cursor-pointer" style={{ background: "var(--pixel-panel)" }}
               onClick={() => openArticle(post)}>
               <div className="flex items-center gap-2 mb-1">
-                {post.tag && (
-                  <span style={{ fontSize: 9, padding: "1px 6px", color: "#fff", background: TAG_COLORS[post.tag as PostTag] ?? "var(--pixel-muted)" }}>
-                    {post.tag}
+                {(post.tags ?? []).map((t) => (
+                  <span key={t} style={{ fontSize: 9, padding: "1px 5px", color: "#fff", background: TAG_COLORS[t as PostTag] ?? "var(--pixel-muted)", borderRadius: 2, marginRight: 2 }}>
+                    {t}
                   </span>
-                )}
+                ))}
                 <span style={{ fontSize: 14, fontWeight: "bold", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {getTitle(post.content)}
                 </span>
@@ -392,11 +394,11 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
         <ModalOverlay onClose={() => setShowCompose(false)}>
           <div className="pixel-font mb-3" style={{ fontSize: 14 }}>发布文章</div>
           <div className="flex gap-1 mb-3">
-            {POST_TAGS.map((t) => (
-              <button key={t} onClick={() => setSelectedTag(selectedTag === t ? null : t)}
-                style={{ fontSize: 10, padding: "3px 10px", border: "none", cursor: "pointer",
-                  background: selectedTag === t ? TAG_COLORS[t] : "var(--pixel-bg)",
-                  color: selectedTag === t ? "#fff" : "var(--pixel-muted)" }}>{t}</button>
+            {POST_TAGS.filter((t) => t !== "虚假的人类").map((t) => (
+              <button key={t} onClick={() => setSelectedTags((prev) => { const s = new Set(prev); if (s.has(t)) s.delete(t); else s.add(t); return s; })}
+                style={{ fontSize: 10, padding: "3px 10px", border: "none", cursor: "pointer", borderRadius: 3,
+                  background: selectedTags.has(t) ? TAG_COLORS[t] : "var(--pixel-bg)",
+                  color: selectedTags.has(t) ? "#fff" : "var(--pixel-muted)" }}>{t}</button>
             ))}
           </div>
           <textarea ref={textareaRef} className="pixel-textarea mb-2" rows={12}

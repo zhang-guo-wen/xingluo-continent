@@ -84,7 +84,7 @@ export async function fetchPosts(userId?: string, campId?: string): Promise<Plaz
 }
 
 export async function createPost(body: {
-  userId: string; userName: string; userAvatar: string | null; campId?: string; tag?: string; price?: number; content: string;
+  userId: string; userName: string; userAvatar: string | null; campId?: string; tags?: string[]; price?: number; content: string;
 }) {
   return post<{ post: PlazaPostWithReactions }>("/api/plaza/posts", body);
 }

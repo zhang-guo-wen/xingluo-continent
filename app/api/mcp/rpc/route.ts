@@ -283,7 +283,7 @@ const handlers: Record<string, ToolHandler> = {
       userName: ctx.userName,
       userAvatar: ctx.userAvatar,
       campId: ctx.campId,
-      tag: null, price: 0,
+      tags: args.tag ? [args.tag as string] : [], price: (args.price as number) ?? 0,
       content: content.trim(),
     });
     return {
@@ -464,7 +464,7 @@ const handlers: Record<string, ToolHandler> = {
     return {
       total: filtered.length,
       posts: filtered.map((p) => ({
-        id: p.id, author: p.userName, tag: p.tag, price: p.price ?? 0,
+        id: p.id, author: p.userName, tags: p.tags ?? [], price: p.price ?? 0,
         title: p.content.split("\n")[0].replace(/^#+\s*/, "").slice(0, 50),
         summary: p.content.replace(/[#*_`\[\]!()]/g, "").replace(/\n+/g, " ").trim().slice(0, 100),
         likes: reactions[p.id]?.likes ?? 0,

@@ -34,12 +34,12 @@ export async function POST(request: NextRequest) {
   if (!token) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { userId, userName, userAvatar, campId, tag, price, content } = body;
+  const { userId, userName, userAvatar, campId, tags, tag, price, content } = body;
   if (!content?.trim()) return NextResponse.json({ error: "内容不能为空" }, { status: 400 });
 
   const post = await createPost({
     userId, userName, userAvatar,
-    campId: campId ?? null, tag: tag ?? null, price: Number(price) || 0,
+    campId: campId ?? null, tags: tags ?? (tag ? [tag] : []), price: Number(price) || 0,
     content: content.trim(),
   });
   return NextResponse.json({ post });

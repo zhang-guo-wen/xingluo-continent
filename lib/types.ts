@@ -96,7 +96,7 @@ export interface CampFollow {
 
 // ============ 帖子 ============
 
-export type PostTag = "首发" | "原创" | "总结" | "实践";
+export type PostTag = "首发" | "原创" | "总结" | "实践" | "虚假的人类";
 
 export interface PlazaPost {
   id: string;
@@ -104,7 +104,7 @@ export interface PlazaPost {
   userName: string;
   userAvatar: string | null;
   campId: string | null;
-  tag: PostTag | null;
+  tags: string[];           // 多标签：首发/原创/总结/实践/虚假的人类
   price: number;            // 阅读费用（XLC），0=免费，支持5位小数
   content: string;          // Markdown 格式
   images: string[];

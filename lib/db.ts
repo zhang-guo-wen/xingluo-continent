@@ -85,6 +85,14 @@ function readJson<T>(fp: string, fb: T): T {
 }
 function writeJson<T>(fp: string, d: T) { ensureDir(); fs.writeFileSync(fp, JSON.stringify(d, null, 2), "utf-8"); }
 
+/** 解析标签：兼容旧单字符串和新 JSON 数组 */
+function parseTags(raw: unknown): string[] {
+  if (!raw) return [];
+  const s = String(raw);
+  if (s.startsWith("[")) { try { return JSON.parse(s); } catch { return []; } }
+  return s ? [s] : [];
+}
+
 function mapUser(r: Record<string, unknown>): PlazaUser {
   return {
     id: r.id as string, userNo: r.user_no as string, name: r.name as string,
@@ -266,18 +274,19 @@ export async function updateUserProfile(userId: string, data: {
 
 // ============ 帖子 ============
 
-export async function createPost(post: Omit<PlazaPost, "id" | "createdAt" | "images"> & { images?: string[]; tag?: string | null; price?: number }): Promise<PlazaPost> {
+export async function createPost(post: Omit<PlazaPost, "id" | "createdAt" | "images" | "tags"> & { images?: string[]; tags?: string[]; price?: number }): Promise<PlazaPost> {
   const id = genId("post");
   const createdAt = new Date().toISOString();
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
+    const tagsJson = JSON.stringify(post.tags ?? []);
     await sql`INSERT INTO plaza_posts (id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at)
-      VALUES (${id}, ${post.userId}, ${post.userName}, ${post.userAvatar}, ${post.campId ?? null}, ${post.tag ?? null}, ${post.price ?? 0}, ${post.content}, ${createdAt})`;
-    return { ...post, tag: (post.tag as PlazaPost["tag"]) ?? null, price: post.price ?? 0, images: post.images ?? [], id, createdAt };
+      VALUES (${id}, ${post.userId}, ${post.userName}, ${post.userAvatar}, ${post.campId ?? null}, ${tagsJson}, ${post.price ?? 0}, ${post.content}, ${createdAt})`;
+    return { ...post, tags: post.tags ?? [], price: post.price ?? 0, images: post.images ?? [], id, createdAt };
   }
   const posts = readJson<PlazaPost[]>(POSTS_FILE, []);
-  const newPost: PlazaPost = { ...post, images: post.images ?? [], id, createdAt };
+  const newPost: PlazaPost = { ...post, tags: post.tags ?? [], images: post.images ?? [], id, createdAt };
   posts.unshift(newPost);
   writeJson(POSTS_FILE, posts);
   return newPost;
@@ -290,7 +299,7 @@ export async function getAllPosts(): Promise<PlazaPost[]> {
     const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at FROM plaza_posts ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tag: r.tag ?? null, price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []);
@@ -304,7 +313,7 @@ export async function getCampPosts(campId: string): Promise<PlazaPost[]> {
     const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at FROM plaza_posts WHERE camp_id = ${campId} ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tag: r.tag ?? null, price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []).filter((p) => p.campId === campId);
@@ -317,7 +326,7 @@ export async function getUserPosts(userId: string): Promise<PlazaPost[]> {
     const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at FROM plaza_posts WHERE user_id = ${userId} ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tag: r.tag ?? null, price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []).filter((p) => p.userId === userId);

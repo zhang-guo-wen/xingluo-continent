@@ -204,7 +204,7 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
                 return (
                   <div key={p.id} className="pixel-border p-3 mb-2" style={{ background: "var(--pixel-panel)" }}>
                     <div className="flex items-center gap-2 mb-1">
-                      {p.tag && <span style={{ fontSize: 9, padding: "1px 5px", color: "#fff", background: p.tag === "首发" ? "#e94560" : p.tag === "原创" ? "#6b8cff" : p.tag === "总结" ? "#4a9c5d" : "#f0c040" }}>{p.tag}</span>}
+                      {(p.tags ?? []).map((t) => <span key={t} style={{ fontSize: 9, padding: "1px 5px", color: "#fff", borderRadius: 2, marginRight: 2, background: t === "首发" ? "#e94560" : t === "原创" ? "#6b8cff" : t === "总结" ? "#4a9c5d" : t === "虚假的人类" ? "#9333ea" : "#f0c040" }}>{t}</span>)}
                       <span style={{ fontSize: 13, fontWeight: "bold" }}>{title}</span>
                     </div>
                     <div style={{ fontSize: 11, color: "var(--pixel-muted)", height: 16, overflow: "hidden" }}>{summary}</div>

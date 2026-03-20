@@ -43,6 +43,22 @@ export async function resolveSecondMeUser(
     const result = await res.json();
     if (result.code === 0 && result.data) {
       const d = result.data;
+      // 尝试通过 route 匹配已有 OAuth 用户，保持 ID 一致
+      const { neon } = await import("@neondatabase/serverless");
+      const dbUrl = process.env.DATABASE_URL;
+      if (dbUrl && d.originRoute) {
+        const sql = neon(dbUrl);
+        const rows = await sql`SELECT id, name FROM plaza_users WHERE route = ${d.originRoute} LIMIT 1`;
+        if (rows.length > 0) {
+          return {
+            id: rows[0].id as string,
+            name: d.name ?? rows[0].name as string,
+            nickname: d.name,
+            avatarUrl: d.avatar ?? null,
+            route: d.originRoute ?? null,
+          };
+        }
+      }
       return {
         id: d.originRoute ?? d.name ?? accessToken.slice(-12),
         name: d.name ?? "匿名用户",
