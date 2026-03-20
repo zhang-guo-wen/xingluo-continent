@@ -48,7 +48,7 @@ export default function PostFeed({ posts, onReact, onPost, campId }: Props) {
           userAvatar: gp.userAvatar,
           tag: null,
           images: [],
-          likes: 0, dislikes: 0, userReaction: null,
+          likes: 0, dislikes: 0, commentCount: 0, userReaction: null,
         });
       }
     }

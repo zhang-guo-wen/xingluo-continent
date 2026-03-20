@@ -46,6 +46,23 @@ function writeJson<T>(fp: string, d: T) { ensureDir(); fs.writeFileSync(fp, JSON
 const COMMENTS_FILE = path.join(DATA_DIR, "post_comments.json");
 const CVOTES_FILE = path.join(DATA_DIR, "comment_votes.json");
 
+/** 批量获取帖子评论数 */
+export async function getCommentCounts(postIds: string[]): Promise<Record<string, number>> {
+  if (postIds.length === 0) return {};
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    const rows = await sql`SELECT post_id, COUNT(*)::int AS cnt FROM post_comments WHERE post_id = ANY(${postIds}) GROUP BY post_id`;
+    const map: Record<string, number> = {};
+    for (const r of rows) map[r.post_id as string] = r.cnt as number;
+    return map;
+  }
+  const all = readJson<PostComment[]>(COMMENTS_FILE, []);
+  const map: Record<string, number> = {};
+  for (const c of all) { if (postIds.includes(c.postId)) map[c.postId] = (map[c.postId] ?? 0) + 1; }
+  return map;
+}
+
 /** 获取帖子的所有评论 */
 export async function getPostComments(postId: string): Promise<PostComment[]> {
   if (DATABASE_URL) {

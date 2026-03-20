@@ -281,7 +281,6 @@ export default function PlazaClient() {
       )}
 
       {/* === 其他 tab === */}
-      {menuTab === "posts" && <PostFeed posts={posts} onReact={handleReact} onPost={handlePost} campId={myCampId} />}
       {menuTab === "market" && <MarketView currentUserId={currentUser?.id} onBuy={() => fetchAll(currentUser?.id)} />}
       {menuTab === "rank" && <LeaderboardView currentUserId={currentUser?.id} />}
       {menuTab === "me" && currentUser && <ProfileView user={currentUser} onUserUpdate={setCurrentUser} />}

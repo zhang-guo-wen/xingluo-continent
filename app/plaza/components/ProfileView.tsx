@@ -192,22 +192,31 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
         {/* === 消息 === */}
         {tab === "posts" && (
           <div>
-            <div className="mb-3" style={{ fontSize: 13 }}>我的消息 ({posts.length})</div>
+            <div className="mb-3" style={{ fontSize: 13 }}>我的文章 ({posts.length})</div>
             {posts.length === 0 ? (
-              <div className="pixel-border p-4 text-center" style={{ background: "var(--pixel-panel)", fontSize: 13, color: "var(--pixel-muted)" }}>
-                还没有发布消息
+              <div className="pixel-border p-3 text-center" style={{ background: "var(--pixel-panel)", fontSize: 12, color: "var(--pixel-muted)" }}>
+                还没有发布文章
               </div>
             ) : (
-              posts.map((p) => (
-                <div key={p.id} className="pixel-border p-3 mb-2" style={{ background: "var(--pixel-panel)" }}>
-                  <p style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{p.content}</p>
-                  <div className="flex gap-3 mt-2" style={{ fontSize: 11, color: "var(--pixel-muted)" }}>
-                    <span>👍 {p.likes}</span>
-                    <span>👎 {p.dislikes}</span>
-                    <span style={{ marginLeft: "auto" }}>{timeAgo(p.createdAt)}</span>
+              posts.map((p) => {
+                const title = p.content.split("\n")[0].replace(/^#+\s*/, "").replace(/[*_`]/g, "").trim().slice(0, 40) || "无标题";
+                const summary = p.content.replace(/[#*_`\[\]!()]/g, "").replace(/\n+/g, " ").trim().slice(0, 60);
+                return (
+                  <div key={p.id} className="pixel-border p-3 mb-2" style={{ background: "var(--pixel-panel)" }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {p.tag && <span style={{ fontSize: 9, padding: "1px 5px", color: "#fff", background: p.tag === "首发" ? "#e94560" : p.tag === "原创" ? "#6b8cff" : p.tag === "总结" ? "#4a9c5d" : "#f0c040" }}>{p.tag}</span>}
+                      <span style={{ fontSize: 13, fontWeight: "bold" }}>{title}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--pixel-muted)", height: 16, overflow: "hidden" }}>{summary}</div>
+                    <div className="flex gap-3 mt-2 pt-1" style={{ borderTop: "1px solid var(--pixel-border)", fontSize: 11, color: "var(--pixel-muted)" }}>
+                      <span>👍 {p.likes}</span>
+                      <span>👎 {p.dislikes}</span>
+                      <span>💬 {p.commentCount ?? 0}</span>
+                      <span style={{ marginLeft: "auto" }}>{timeAgo(p.createdAt)}</span>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -287,22 +296,22 @@ export default function ProfileView({ user, onUserUpdate }: Props) {
           <div>
             <div className="mb-3" style={{ fontSize: 13 }}>交易流水</div>
             {transactions.length === 0 ? (
-              <div className="pixel-border p-4 text-center" style={{ background: "var(--pixel-panel)", fontSize: 13, color: "var(--pixel-muted)" }}>
+              <div className="pixel-border p-3 text-center" style={{ background: "var(--pixel-panel)", fontSize: 12, color: "var(--pixel-muted)" }}>
                 暂无交易记录
               </div>
             ) : (
               transactions.map((tx) => {
                 const isIncome = tx.toUserId === user.id;
                 return (
-                  <div key={tx.id} className="pixel-border p-3 mb-2 flex items-center justify-between" style={{ background: "var(--pixel-panel)" }}>
-                    <div>
-                      <div style={{ fontSize: 12 }}>{TX_TYPE_LABEL[tx.type] ?? tx.type}</div>
-                      {tx.memo && <div style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{tx.memo}</div>}
-                      <div style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{timeAgo(tx.createdAt)}</div>
+                  <div key={tx.id} className="pixel-border p-3 mb-2" style={{ background: "var(--pixel-panel)" }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span style={{ fontSize: 13 }}>{TX_TYPE_LABEL[tx.type] ?? tx.type}</span>
+                      <span style={{ fontSize: 13, fontWeight: "bold", color: isIncome ? "var(--pixel-green)" : "var(--pixel-accent)" }}>
+                        {isIncome ? "+" : "-"}{tx.amount} XLC
+                      </span>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: "bold", color: isIncome ? "var(--pixel-green)" : "var(--pixel-accent)" }}>
-                      {isIncome ? "+" : "-"}{tx.amount} XLC
-                    </div>
+                    {tx.memo && <div style={{ fontSize: 11, color: "var(--pixel-muted)" }}>{tx.memo}</div>}
+                    <div style={{ fontSize: 11, color: "var(--pixel-muted)", marginTop: 2 }}>{timeAgo(tx.createdAt)}</div>
                   </div>
                 );
               })

@@ -359,6 +359,7 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
                   onClick={(e) => { e.stopPropagation(); react(post.id, "like"); }}>👍 {post.likes || 0}</span>
                 <span style={{ color: post.userReaction === "dislike" ? "var(--pixel-accent)" : "var(--pixel-muted)", cursor: "pointer" }}
                   onClick={(e) => { e.stopPropagation(); react(post.id, "dislike"); }}>👎 {post.dislikes || 0}</span>
+                <span style={{ color: "var(--pixel-muted)" }}>💬 {post.commentCount || 0}</span>
               </div>
             </div>
           ))

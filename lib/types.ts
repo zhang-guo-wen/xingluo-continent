@@ -121,6 +121,7 @@ export interface UploadedImage {
 export interface PlazaPostWithReactions extends PlazaPost {
   likes: number;
   dislikes: number;
+  commentCount: number;
   userReaction: ReactionType | null;
 }
 
