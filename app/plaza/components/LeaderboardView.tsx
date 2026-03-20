@@ -9,6 +9,7 @@ const TABS: { key: LeaderboardType; icon: string; label: string }[] = [
   { key: "reputation", icon: "⭐", label: "信誉" },
   { key: "coins", icon: "🪙", label: "金币" },
   { key: "compute", icon: "⚡", label: "算力" },
+  { key: "space_visits", icon: "🚀", label: "空间" },
 ];
 
 const CROWNS = ["👑", "🥈", "🥉"];
@@ -28,7 +29,8 @@ export default function LeaderboardView({ currentUserId }: Props) {
   function getValue(u: PlazaUser): number {
     if (tab === "reputation") return u.reputation;
     if (tab === "coins") return u.coins;
-    return u.compute;
+    if (tab === "compute") return u.compute;
+    return u.spaceVisits;
   }
 
   return (

@@ -255,20 +255,21 @@ export async function getLeaderboard(type: LeaderboardType, limit = 50): Promise
     let rows;
     if (type === "reputation") rows = await sql`SELECT * FROM plaza_users ORDER BY reputation DESC LIMIT ${limit}`;
     else if (type === "coins") rows = await sql`SELECT * FROM plaza_users ORDER BY coins DESC LIMIT ${limit}`;
-    else rows = await sql`SELECT * FROM plaza_users ORDER BY compute DESC LIMIT ${limit}`;
+    else if (type === "compute") rows = await sql`SELECT * FROM plaza_users ORDER BY compute DESC LIMIT ${limit}`;
+    else rows = await sql`SELECT * FROM plaza_users ORDER BY space_visits DESC LIMIT ${limit}`;
 
     return rows.map((r) => ({
       id: r.id, userNo: r.user_no, name: r.name,
       occupation: r.occupation, description: r.description,
       avatarUrl: r.avatar_url, route: r.route,
-      walletAddress: r.wallet_address, cityId: r.city_id ?? "xingluo",
+      walletAddress: r.wallet_address, spaceUrl: r.space_url ?? null, cityId: r.city_id ?? "xingluo",
       campId: r.camp_id ?? null, isOnline: r.is_online ?? false, lastSeenAt: r.last_seen_at ?? null,
-      reputation: r.reputation, coins: r.coins, compute: r.compute ?? 0,
+      reputation: r.reputation, coins: r.coins, compute: r.compute ?? 0, spaceVisits: r.space_visits ?? 0,
       joinedAt: r.joined_at,
     }));
   }
   const users = readJson<PlazaUser[]>(USERS_FILE, []);
-  const getValue = (u: PlazaUser) => type === "reputation" ? u.reputation : type === "coins" ? u.coins : (u.compute ?? 0);
+  const getValue = (u: PlazaUser) => type === "reputation" ? u.reputation : type === "coins" ? u.coins : type === "compute" ? (u.compute ?? 0) : (u.spaceVisits ?? 0);
   const sorted = [...users].sort((a, b) => getValue(b) - getValue(a));
   return sorted.slice(0, limit);
 }

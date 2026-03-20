@@ -49,6 +49,16 @@ async function ensureSchema() {
   await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS camp_id TEXT`.catch(() => {});
   await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS tag TEXT`.catch(() => {});
   await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS price REAL NOT NULL DEFAULT 0`.catch(() => {});
+  await sql`ALTER TABLE plaza_users ADD COLUMN IF NOT EXISTS space_url TEXT`.catch(() => {});
+  await sql`ALTER TABLE plaza_users ADD COLUMN IF NOT EXISTS space_visits INTEGER NOT NULL DEFAULT 0`.catch(() => {});
+  await sql`
+    CREATE TABLE IF NOT EXISTS space_visit_logs (
+      id TEXT PRIMARY KEY,
+      space_owner_id TEXT NOT NULL,
+      visitor_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `.catch(() => {});
   await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'web'`.catch(() => {});
   // 阅读记录表
   await sql`
@@ -100,11 +110,13 @@ function mapUser(r: Record<string, unknown>): PlazaUser {
     occupation: r.occupation as string | null, description: r.description as string | null,
     avatarUrl: r.avatar_url as string | null, route: r.route as string | null,
     walletAddress: r.wallet_address as string | null,
+    spaceUrl: (r.space_url as string) ?? null,
     cityId: (r.city_id as string) ?? "xingluo",
     campId: (r.camp_id as string) ?? null,
     isOnline: (r.is_online as boolean) ?? false,
     lastSeenAt: (r.last_seen_at as string) ?? null,
     reputation: r.reputation as number, coins: r.coins as number, compute: (r.compute as number) ?? 0,
+    spaceVisits: (r.space_visits as number) ?? 0,
     joinedAt: r.joined_at as string,
   };
 }
@@ -112,7 +124,7 @@ function mapUser(r: Record<string, unknown>): PlazaUser {
 // ============ 用户 CRUD ============
 
 export async function upsertPlazaUser(
-  input: Omit<PlazaUser, "userNo" | "reputation" | "coins" | "compute" | "walletAddress" | "cityId" | "campId" | "isOnline" | "lastSeenAt"> & {
+  input: Omit<PlazaUser, "userNo" | "reputation" | "coins" | "compute" | "walletAddress" | "spaceUrl" | "cityId" | "campId" | "isOnline" | "lastSeenAt" | "spaceVisits"> & {
     occupation?: string | null;
     description?: string | null;
     walletAddress?: string | null;
@@ -144,8 +156,9 @@ export async function upsertPlazaUser(
         ...input, occupation: newOcc, description: newDesc,
         userNo: e.user_no, walletAddress: e.wallet_address,
         cityId: e.city_id ?? "xingluo",
+        spaceUrl: e.space_url ?? null,
         campId: e.camp_id ?? null, isOnline: true, lastSeenAt: new Date().toISOString(),
-        reputation: e.reputation, coins: e.coins, compute: e.compute ?? 0,
+        reputation: e.reputation, coins: e.coins, compute: e.compute ?? 0, spaceVisits: e.space_visits ?? 0,
       };
     }
     const userNo = await nextUserNo();
@@ -156,7 +169,7 @@ export async function upsertPlazaUser(
     // 新用户注册奖励 + 分配随机营地
     mintCoins(input.id, 100, "signup_bonus", "注册奖励").catch(() => {});
     const campId = await assignRandomCamp(input.id).catch(() => "camp_default") ?? "camp_default";
-    return { ...input, userNo, occupation, description, walletAddress: input.walletAddress ?? null, cityId, campId, isOnline: true, lastSeenAt: new Date().toISOString(), reputation: 0, coins: 100, compute: 0 };
+    return { ...input, userNo, occupation, description, walletAddress: input.walletAddress ?? null, spaceUrl: null, cityId, campId, isOnline: true, lastSeenAt: new Date().toISOString(), reputation: 0, coins: 100, compute: 0, spaceVisits: 0 };
   }
 
   // 文件回退
@@ -174,7 +187,7 @@ export async function upsertPlazaUser(
   const userNo = await nextUserNo();
   const newUser: PlazaUser = {
     ...input, userNo, occupation, description,
-    walletAddress: input.walletAddress ?? null, cityId, campId: "camp_default", isOnline: true, lastSeenAt: new Date().toISOString(), reputation: 0, coins: 100, compute: 0,
+    walletAddress: input.walletAddress ?? null, spaceUrl: null, cityId, campId: "camp_default", isOnline: true, lastSeenAt: new Date().toISOString(), reputation: 0, coins: 100, compute: 0, spaceVisits: 0,
   };
   users.push(newUser);
   writeJson(USERS_FILE, users);
@@ -250,7 +263,7 @@ export async function updateReputation(userId: string, delta: number): Promise<v
 
 /** 更新用户个人信息（职位、描述等） */
 export async function updateUserProfile(userId: string, data: {
-  name?: string; occupation?: string; description?: string; walletAddress?: string;
+  name?: string; occupation?: string; description?: string; walletAddress?: string; spaceUrl?: string;
 }): Promise<PlazaUser | null> {
   if (DATABASE_URL) {
     await ensureSchema();
@@ -259,6 +272,7 @@ export async function updateUserProfile(userId: string, data: {
     if (data.occupation !== undefined) await sql`UPDATE plaza_users SET occupation = ${data.occupation} WHERE id = ${userId}`;
     if (data.description !== undefined) await sql`UPDATE plaza_users SET description = ${data.description} WHERE id = ${userId}`;
     if (data.walletAddress !== undefined) await sql`UPDATE plaza_users SET wallet_address = ${data.walletAddress} WHERE id = ${userId}`;
+    if (data.spaceUrl !== undefined) await sql`UPDATE plaza_users SET space_url = ${data.spaceUrl} WHERE id = ${userId}`;
     const [row] = await sql`SELECT * FROM plaza_users WHERE id = ${userId}`;
     return row ? mapUser(row) : null;
   }
@@ -269,8 +283,36 @@ export async function updateUserProfile(userId: string, data: {
   if (data.occupation !== undefined) user.occupation = data.occupation;
   if (data.description !== undefined) user.description = data.description;
   if (data.walletAddress !== undefined) user.walletAddress = data.walletAddress;
+  if (data.spaceUrl !== undefined) user.spaceUrl = data.spaceUrl ?? null;
   writeJson(USERS_FILE, users);
   return user;
+}
+
+/** 记录空间访问 */
+export async function visitSpace(ownerId: string, visitorId: string): Promise<void> {
+  if (ownerId === visitorId) return; // 不记录自己访问自己
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    await sql`INSERT INTO space_visit_logs (id, space_owner_id, visitor_id) VALUES (${genId("sv")}, ${ownerId}, ${visitorId})`;
+    await sql`UPDATE plaza_users SET space_visits = space_visits + 1 WHERE id = ${ownerId}`;
+  }
+}
+
+/** 获取谁访问了我的空间 */
+export async function getSpaceVisitors(ownerId: string, limit = 50): Promise<{ visitorId: string; visitorName: string; visitedAt: string }[]> {
+  if (DATABASE_URL) {
+    await ensureSchema();
+    const sql = neon(DATABASE_URL);
+    const rows = await sql`
+      SELECT sv.visitor_id, u.name AS visitor_name, sv.created_at
+      FROM space_visit_logs sv JOIN plaza_users u ON sv.visitor_id = u.id
+      WHERE sv.space_owner_id = ${ownerId}
+      ORDER BY sv.created_at DESC LIMIT ${limit}
+    `;
+    return rows.map((r) => ({ visitorId: r.visitor_id as string, visitorName: r.visitor_name as string, visitedAt: r.created_at as string }));
+  }
+  return [];
 }
 
 // ============ 帖子 ============

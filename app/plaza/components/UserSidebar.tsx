@@ -77,6 +77,13 @@ export default function UserSidebar({ users, totalCount, selectedUserId, onSelec
                 </div>
               )}
             </div>
+            {user.spaceUrl && (
+              <a href={user.spaceUrl} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                style={{ fontSize: 8, color: "var(--pixel-blue)", textDecoration: "none", padding: "1px 4px", border: "1px solid var(--pixel-border)", borderRadius: 2 }}>
+                🚀
+              </a>
+            )}
           </div>
         ))
       )}

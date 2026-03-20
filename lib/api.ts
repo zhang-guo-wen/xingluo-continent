@@ -68,7 +68,7 @@ export async function searchUsers(params: UserSearchParams): Promise<PlazaUser[]
 }
 
 export async function updateProfile(userId: string, data: {
-  name?: string; occupation?: string; description?: string; walletAddress?: string;
+  name?: string; occupation?: string; description?: string; walletAddress?: string; spaceUrl?: string;
 }): Promise<PlazaUser> {
   return (await put<{ user: PlazaUser }>("/api/profile/update", { userId, ...data })).user;
 }
@@ -193,6 +193,16 @@ export async function createTask(body: {
 
 export async function updateTaskStatus(taskId: string, userId: string, status: TaskStatus, assigneeId?: string): Promise<void> {
   await post("/api/profile/tasks", { action: "updateStatus", taskId, userId, status, assigneeId });
+}
+
+// ============ 空间 ============
+
+export async function visitSpace(ownerId: string, visitorId: string) {
+  return post<{ ok: boolean }>("/api/space", { ownerId, visitorId });
+}
+
+export async function fetchSpaceVisitors(ownerId: string) {
+  return (await get<{ visitors: { visitorId: string; visitorName: string; visitedAt: string }[] }>(`/api/space?ownerId=${ownerId}`)).visitors;
 }
 
 // ============ 信誉审议 ============

@@ -37,7 +37,7 @@ export default function PlazaClient() {
   const [viewingCampId, setViewingCampId] = useState<string | null>(null);
   const [viewingCampPosts, setViewingCampPosts] = useState<PlazaPostWithReactions[]>([]);
 
-  const [menuTab, setMenuTab] = useState<MenuTab>("forum");
+  const [menuTab, setMenuTab] = useState<MenuTab>("camp");
   const [selectedZone, setSelectedZone] = useState<City | null>(null);
   const [showZoneModal, setShowZoneModal] = useState(false);
   const [showVoteModal, setShowVoteModal] = useState(false);
@@ -69,9 +69,9 @@ export default function PlazaClient() {
         userNo: "", name: raw.name ?? raw.nickname ?? "匿名",
         occupation: null, description: null,
         avatarUrl: raw.avatarUrl ?? null, route: raw.route ?? null,
-        walletAddress: null, cityId: "xingluo",
+        walletAddress: null, spaceUrl: null, cityId: "xingluo",
         campId: null, isOnline: true, lastSeenAt: null,
-        reputation: 0, coins: 0, compute: 0, joinedAt: "",
+        reputation: 0, coins: 0, compute: 0, spaceVisits: 0, joinedAt: "",
       };
       setCurrentUser(u);
       fetchAll(u.id);
@@ -179,6 +179,23 @@ export default function PlazaClient() {
               <span className="pixel-font" style={{ fontSize: 12, color: "var(--pixel-gold)" }}>⛺ {myCamp?.name ?? "营地"}</span>
               <span style={{ fontSize: 10, color: "var(--pixel-muted)", marginLeft: 8 }}>{campUsers.length} 冒险者</span>
               {myCamp?.visibility === "private" && <span style={{ fontSize: 9, color: "var(--pixel-accent)", marginLeft: 6 }}>🔒</span>}
+              {/* 空间地址 */}
+              {currentUser && (
+                <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+                  {currentUser.spaceUrl ? (
+                    <a href={currentUser.spaceUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 10, color: "var(--pixel-blue)" }}>🚀 我的空间</a>
+                  ) : null}
+                  <button
+                    style={{ fontSize: 9, color: "var(--pixel-muted)", background: "none", border: "none", cursor: "pointer" }}
+                    onClick={() => {
+                      const url = prompt("设置你的空间地址（URL）", currentUser.spaceUrl ?? "");
+                      if (url !== null) {
+                        api.updateProfile(currentUser.id, { spaceUrl: url || "" }).then((u) => setCurrentUser(u));
+                      }
+                    }}>⚙️</button>
+                </span>
+              )}
             </div>
             <div className="flex-1 p-1" style={{ overflow: "hidden" }}>
               <MapGrid users={campUsers} currentUser={currentUser} selectedUserId={selectedUser?.id ?? null} onSelectUser={setSelectedUser} />

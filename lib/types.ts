@@ -9,13 +9,15 @@ export interface PlazaUser {
   avatarUrl: string | null;
   route: string | null;
   walletAddress: string | null;
-  cityId: string;           // 所属城市
-  campId: string | null;    // 所属营地 ID（null=未分配）
-  isOnline: boolean;        // 是否在线
-  lastSeenAt: string | null; // 最后在线时间
+  spaceUrl: string | null;  // 个人空间地址
+  cityId: string;
+  campId: string | null;
+  isOnline: boolean;
+  lastSeenAt: string | null;
   reputation: number;
   coins: number;
   compute: number;
+  spaceVisits: number;      // 空间被访问次数
   joinedAt: string;
 }
 
@@ -235,7 +237,7 @@ export interface PricePoint {
 
 // ============ 排行榜 ============
 
-export type LeaderboardType = "reputation" | "coins" | "compute";
+export type LeaderboardType = "reputation" | "coins" | "compute" | "space_visits";
 
 // ============ 签到 ============
 
