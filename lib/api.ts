@@ -84,9 +84,17 @@ export async function fetchPosts(userId?: string, campId?: string): Promise<Plaz
 }
 
 export async function createPost(body: {
-  userId: string; userName: string; userAvatar: string | null; campId?: string; tag?: string; content: string;
+  userId: string; userName: string; userAvatar: string | null; campId?: string; tag?: string; price?: number; content: string;
 }) {
   return post<{ post: PlazaPostWithReactions }>("/api/plaza/posts", body);
+}
+
+export async function readPost(postId: string, userId: string): Promise<{ paid: boolean; alreadyRead?: boolean; free?: boolean; amount?: number; error?: string; required?: number }> {
+  const res = await fetch(`/api/plaza/posts/${postId}/read`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+  return res.json();
 }
 
 export async function reactToPost(postId: string, userId: string, action: ReactionType): Promise<PostReactions> {

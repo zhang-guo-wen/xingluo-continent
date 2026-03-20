@@ -104,7 +104,8 @@ export interface PlazaPost {
   userName: string;
   userAvatar: string | null;
   campId: string | null;
-  tag: PostTag | null;      // 帖子标签
+  tag: PostTag | null;
+  price: number;            // 阅读费用（XLC），0=免费，支持5位小数
   content: string;          // Markdown 格式
   images: string[];
   createdAt: string;

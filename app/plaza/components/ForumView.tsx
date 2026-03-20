@@ -59,6 +59,7 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
   const [showCompose, setShowCompose] = useState(false);
   const [content, setContent] = useState("");
   const [selectedTag, setSelectedTag] = useState<PostTag | null>(null);
+  const [postPrice, setPostPrice] = useState("");
   const [posting, setPosting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -75,6 +76,17 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
   // ============ 文章详情 ============
 
   async function openArticle(post: PlazaPostWithReactions) {
+    // 付费帖子：先检查/扣费
+    if (post.price > 0 && post.userId !== currentUserId) {
+      const result = await api.readPost(post.id, currentUserId);
+      if (result.error) {
+        alert(`需要 ${result.required ?? post.price} XLC 才能阅读此文章（${result.error}）`);
+        return;
+      }
+      if (result.paid) {
+        // 刚扣费成功，可以继续
+      }
+    }
     setViewingPost(post);
     api.fetchPostComments(post.id).then(setComments).catch(() => setComments([]));
   }
@@ -128,8 +140,8 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
     if (!content.trim()) return;
     setPosting(true);
     try {
-      await api.createPost({ userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, campId, tag: selectedTag ?? undefined, content });
-      setContent(""); setSelectedTag(null); setShowCompose(false);
+      await api.createPost({ userId: currentUserId, userName: currentUserName, userAvatar: currentUserAvatar, campId, tag: selectedTag ?? undefined, price: Number(postPrice) || 0, content });
+      setContent(""); setSelectedTag(null); setPostPrice(""); setShowCompose(false);
       api.fetchForumPosts(currentUserId, filter).then(setPosts);
     } finally { setPosting(false); }
   }
@@ -349,6 +361,9 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
                   {post.userAvatar ? <img src={post.userAvatar} alt="" className="pixel-avatar w-full h-full object-cover" /> : post.userName[0]}
                 </div>
                 <span style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{post.userName}</span>
+                {post.price > 0 && (
+                  <span style={{ fontSize: 9, padding: "1px 4px", background: "var(--pixel-gold)", color: "#000" }}>🪙 {post.price}</span>
+                )}
                 <span style={{ fontSize: 9, color: "var(--pixel-muted)", marginLeft: "auto" }}>{timeAgo(post.createdAt)}</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--pixel-muted)", lineHeight: 1.4, height: 34, overflow: "hidden" }}>
@@ -384,7 +399,15 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
           <textarea ref={textareaRef} className="pixel-textarea mb-2" rows={12}
             placeholder={"# 标题\n\n正文内容...\n\n支持 Markdown，粘贴图片自动上传"}
             value={content} onChange={(e) => setContent(e.target.value)} onPaste={handlePaste}
-            style={{ minHeight: 240 }} />
+            style={{ minHeight: 200 }} />
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontSize: 11, color: "var(--pixel-muted)" }}>阅读费用</span>
+            <input className="pixel-input" type="number" step="0.00001" min="0" placeholder="0（免费）"
+              value={postPrice} onChange={(e) => setPostPrice(e.target.value)}
+              style={{ width: 120, fontSize: 12, padding: "4px 8px" }} />
+            <span style={{ fontSize: 10, color: "var(--pixel-gold)" }}>XLC</span>
+            <span style={{ fontSize: 9, color: "var(--pixel-muted)" }}>0=免费，支持5位小数</span>
+          </div>
           <div className="flex justify-between items-center">
             <span style={{ fontSize: 9, color: "var(--pixel-muted)" }}>{uploading ? "📤 上传中..." : "Markdown · 粘贴图片自动上传"}</span>
             <div className="flex gap-2">

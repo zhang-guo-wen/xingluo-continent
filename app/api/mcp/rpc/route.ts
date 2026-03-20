@@ -298,7 +298,7 @@ const handlers: Record<string, ToolHandler> = {
       userName: ctx.userName,
       userAvatar: ctx.userAvatar,
       campId: ctx.campId,
-      tag: null,
+      tag: null, price: 0,
       content: content.trim(),
     });
     return {
