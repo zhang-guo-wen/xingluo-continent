@@ -175,26 +175,27 @@ export default function PlazaClient() {
             onRefresh={() => { setVisibleSeed((s) => s + 1); setSelectedUser(null); }}
           />
           <div className="absolute" style={{ left: 180, right: selectedUser ? 280 : 0, top: 0, bottom: 56, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <div className="text-center py-2 shrink-0">
+            <div className="flex items-center justify-center gap-2 py-2 px-3 shrink-0">
               <span className="pixel-font" style={{ fontSize: 12, color: "var(--pixel-gold)" }}>⛺ {myCamp?.name ?? "营地"}</span>
-              <span style={{ fontSize: 10, color: "var(--pixel-muted)", marginLeft: 8 }}>{campUsers.length} 冒险者</span>
-              {myCamp?.visibility === "private" && <span style={{ fontSize: 9, color: "var(--pixel-accent)", marginLeft: 6 }}>🔒</span>}
-              {/* 空间地址 */}
+              <span style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{campUsers.length} 冒险者</span>
+              {myCamp?.visibility === "private" && <span style={{ fontSize: 9, color: "var(--pixel-accent)" }}>🔒</span>}
+              <span style={{ flex: 1 }} />
               {currentUser && (
-                <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
-                  {currentUser.spaceUrl ? (
+                <div className="flex items-center gap-2">
+                  {currentUser.spaceUrl && (
                     <a href={currentUser.spaceUrl} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 10, color: "var(--pixel-blue)" }}>🚀 我的空间</a>
-                  ) : null}
+                      style={{ fontSize: 10, color: "var(--pixel-blue)", textDecoration: "none" }}>🚀 我的空间</a>
+                  )}
                   <button
-                    style={{ fontSize: 9, color: "var(--pixel-muted)", background: "none", border: "none", cursor: "pointer" }}
+                    className="pixel-btn"
+                    style={{ fontSize: 9, padding: "2px 8px" }}
                     onClick={() => {
                       const url = prompt("设置你的空间地址（URL）", currentUser.spaceUrl ?? "");
                       if (url !== null) {
                         api.updateProfile(currentUser.id, { spaceUrl: url || "" }).then((u) => setCurrentUser(u));
                       }
-                    }}>⚙️</button>
-                </span>
+                    }}>⚙️ 空间</button>
+                </div>
               )}
             </div>
             <div className="flex-1 p-1" style={{ overflow: "hidden" }}>
