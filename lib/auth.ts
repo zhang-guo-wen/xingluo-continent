@@ -16,24 +16,44 @@ export function readBearerToken(request: Request): string | null {
 export async function resolveSecondMeUser(
   accessToken: string
 ): Promise<SecondMeUserInfo | null> {
+  // 先尝试 OAuth token (lba_at_)
   try {
     const res = await fetch(`${API_BASE_URL}/api/secondme/user/info`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const result = await res.json();
-    if (result.code !== 0 || !result.data) return null;
-    const d = result.data;
-    return {
-      id: d.id ?? d.email ?? accessToken.slice(-12),
-      name: d.name ?? d.nickname ?? "匿名用户",
-      nickname: d.nickname,
-      email: d.email,
-      avatarUrl: d.avatarUrl ?? null,
-      route: d.route ?? null,
-    };
-  } catch {
-    return null;
-  }
+    if (result.code === 0 && result.data) {
+      const d = result.data;
+      return {
+        id: d.id ?? d.email ?? accessToken.slice(-12),
+        name: d.name ?? d.nickname ?? "匿名用户",
+        nickname: d.nickname,
+        email: d.email,
+        avatarUrl: d.avatarUrl ?? null,
+        route: d.route ?? null,
+      };
+    }
+  } catch {}
+
+  // 回退：尝试 sm- token (third-party-agent)
+  try {
+    const res = await fetch("https://app.mindos.com/gate/in/rest/third-party-agent/v1/profile", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const result = await res.json();
+    if (result.code === 0 && result.data) {
+      const d = result.data;
+      return {
+        id: d.originRoute ?? d.name ?? accessToken.slice(-12),
+        name: d.name ?? "匿名用户",
+        nickname: d.name,
+        avatarUrl: d.avatar ?? null,
+        route: d.originRoute ?? null,
+      };
+    }
+  } catch {}
+
+  return null;
 }
 
 /** MCP 请求鉴权：提取 token → 解析用户，失败返回 null */
