@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAccessToken } from "@/lib/auth";
-import { getAllPosts } from "@/lib/db";
+import { getAllPosts, getAllPlazaUsers } from "@/lib/db";
 import { getFollowedCamps, getFriends } from "@/lib/camps";
 import { getPostsReactions } from "@/lib/kv";
 import { getCommentCounts } from "@/lib/comments";
@@ -13,19 +13,26 @@ export async function GET(request: NextRequest) {
   const filter = request.nextUrl.searchParams.get("filter");
   if (!userId) return NextResponse.json({ error: "缺少 userId" }, { status: 400 });
 
-  const [followedCamps, friends, allPosts] = await Promise.all([
+  const [followedCamps, friends, allPosts, allUsers] = await Promise.all([
     getFollowedCamps(userId),
     getFriends(userId),
     getAllPosts(),
+    getAllPlazaUsers(),
   ]);
 
   const friendIds = new Set(friends.map((f) => f.friendId));
   const campIds = new Set(followedCamps.map((f) => f.campId));
 
+  // 当前用户所在营地
+  const me = allUsers.find((u) => u.id === userId);
+  const myCampId = me?.campId ?? "camp_default";
+
   const forumPosts = allPosts.filter((p) => {
-    if (p.userId === userId) return true;
+    if (p.userId === userId) return true;                       // 自己的帖子
     if (filter === "camps") return p.campId ? campIds.has(p.campId) : false;
     if (filter === "friends") return friendIds.has(p.userId);
+    // all: 自己营地 + 好友 + 关注营地
+    if ((p.campId ?? "camp_default") === myCampId) return true; // 同营地帖子
     return friendIds.has(p.userId) || (p.campId && campIds.has(p.campId));
   });
 
