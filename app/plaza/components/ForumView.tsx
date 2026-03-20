@@ -361,8 +361,11 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
                   {post.userAvatar ? <img src={post.userAvatar} alt="" className="pixel-avatar w-full h-full object-cover" /> : post.userName[0]}
                 </div>
                 <span style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{post.userName}</span>
-                {post.price > 0 && (
-                  <span style={{ fontSize: 9, padding: "1px 4px", background: "var(--pixel-gold)", color: "#000" }}>🪙 {post.price}</span>
+                {(post.price ?? 0) > 0 && (
+                  <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--pixel-gold)", color: "#000", borderRadius: 3, fontWeight: 600 }}>🪙 {post.price} XLC</span>
+                )}
+                {(post.price ?? 0) === 0 && (
+                  <span style={{ fontSize: 10, padding: "2px 6px", background: "rgba(74,222,128,0.15)", color: "var(--pixel-green)", borderRadius: 3 }}>免费</span>
                 )}
                 <span style={{ fontSize: 9, color: "var(--pixel-muted)", marginLeft: "auto" }}>{timeAgo(post.createdAt)}</span>
               </div>

@@ -2,71 +2,62 @@
 
 :root {
   /* 主题色 */
-  --pixel-bg: #1a1a2e;
-  --pixel-panel: #16213e;
-  --pixel-border: #0f3460;
+  --pixel-bg: #0f0f1a;
+  --pixel-panel: #1a1a2e;
+  --pixel-border: #2a2a4a;
   --pixel-accent: #e94560;
-  --pixel-green: #4a9c5d;
-  --pixel-blue: #6b8cff;
-  --pixel-gold: #f0c040;
-  --pixel-text: #e0e0e0;
-  --pixel-muted: #888;
+  --pixel-green: #4ade80;
+  --pixel-blue: #60a5fa;
+  --pixel-gold: #fbbf24;
+  --pixel-text: #f1f5f9;
+  --pixel-muted: #94a3b8;
   --pixel-shadow: #000;
 
   /* 字号规范 */
-  --font-xs: 10px;    /* 标签、徽章 */
-  --font-sm: 12px;    /* 辅助文字 */
-  --font-base: 13px;  /* 正文 */
-  --font-md: 14px;    /* 强调正文、列表项 */
-  --font-lg: 16px;    /* 小标题 */
-  --font-xl: 20px;    /* 页面标题 */
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-base: 14px;
+  --font-md: 15px;
+  --font-lg: 17px;
+  --font-xl: 22px;
 }
 
+/* 像素风标题字体（仅用于品牌标题） */
 .pixel-font {
-  font-family: 'Press Start 2P', monospace;
+  font-family: 'Press Start 2P', 'Noto Sans SC', monospace;
+  letter-spacing: 1px;
+}
+
+/* 全局文字渲染优化 */
+* {
+  text-rendering: optimizeLegibility;
 }
 
 .pixel-border {
-  box-shadow:
-    -2px 0 0 0 var(--pixel-border),
-    2px 0 0 0 var(--pixel-border),
-    0 -2px 0 0 var(--pixel-border),
-    0 2px 0 0 var(--pixel-border),
-    -2px -2px 0 0 var(--pixel-border),
-    2px -2px 0 0 var(--pixel-border),
-    -2px 2px 0 0 var(--pixel-border),
-    2px 2px 0 0 var(--pixel-border);
+  border: 1px solid var(--pixel-border);
+  border-radius: 6px;
 }
 
 .pixel-btn {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 12px;
-  padding: 10px 20px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 18px;
   background: var(--pixel-panel);
   color: var(--pixel-text);
-  border: none;
+  border: 1px solid var(--pixel-border);
+  border-radius: 4px;
   cursor: pointer;
-  image-rendering: pixelated;
-  box-shadow:
-    0 2px 0 0 #000,
-    inset 0 -2px 0 0 rgba(0,0,0,0.3),
-    inset 0 2px 0 0 rgba(255,255,255,0.1);
-  transition: transform 0.1s;
+  transition: all 0.15s;
 }
 
 .pixel-btn:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    0 3px 0 0 #000,
-    inset 0 -2px 0 0 rgba(0,0,0,0.3),
-    inset 0 2px 0 0 rgba(255,255,255,0.15);
+  background: var(--pixel-border);
+  border-color: var(--pixel-muted);
 }
 
 .pixel-btn:active {
-  transform: translateY(1px);
-  box-shadow:
-    0 0 0 0 #000,
-    inset 0 2px 0 0 rgba(0,0,0,0.3);
+  transform: scale(0.97);
 }
 
 .pixel-btn-accent {
@@ -205,13 +196,15 @@
 .game-menu {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   display: flex;
-  gap: 2px;
-  padding: 6px;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px 8px;
   background: var(--pixel-panel);
-  border-top: 2px solid var(--pixel-border);
+  border-top: 1px solid var(--pixel-border);
+  backdrop-filter: blur(8px);
   z-index: 40;
 }
 
@@ -219,51 +212,59 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 8px 18px;
+  gap: 2px;
+  padding: 6px 12px;
   cursor: pointer;
   color: var(--pixel-muted);
   transition: color 0.15s;
   border: none;
   background: none;
+  border-radius: 6px;
 }
 
-.game-menu-item:hover,
+.game-menu-item:hover {
+  color: var(--pixel-text);
+  background: rgba(255,255,255,0.05);
+}
+
 .game-menu-item.active {
   color: var(--pixel-gold);
 }
 
 .game-menu-item .icon {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .game-menu-item .label {
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 10px;
+  font-weight: 500;
 }
 
 /* 右下角操作按钮 */
 .action-fab {
   position: fixed;
-  bottom: 76px;
+  bottom: 72px;
   right: 16px;
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   background: var(--pixel-accent);
   color: #fff;
   border: none;
-  font-size: 26px;
+  border-radius: 50%;
+  font-size: 22px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 41;
-  box-shadow: 0 2px 0 0 #000;
-  transition: transform 0.15s;
+  box-shadow: 0 4px 16px rgba(233,69,96,0.4);
+  transition: all 0.2s;
 }
 
 .action-fab:hover {
-  transform: translateY(-2px);
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(233,69,96,0.5);
 }
 
 .action-popup {
@@ -309,56 +310,64 @@
 .pixel-modal {
   background: var(--pixel-panel);
   padding: 24px;
-  max-width: 440px;
-  width: 90%;
-  max-height: 80vh;
+  max-width: 480px;
+  width: 92%;
+  max-height: 85vh;
   overflow-y: auto;
-  box-shadow:
-    -3px 0 0 0 var(--pixel-border),
-    3px 0 0 0 var(--pixel-border),
-    0 -3px 0 0 var(--pixel-border),
-    0 3px 0 0 var(--pixel-border);
+  border: 1px solid var(--pixel-border);
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 
 .pixel-input {
   width: 100%;
-  padding: 10px;
+  padding: 10px 12px;
   background: var(--pixel-bg);
   color: var(--pixel-text);
-  border: 2px solid var(--pixel-border);
+  border: 1px solid var(--pixel-border);
+  border-radius: 4px;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 14px;
   outline: none;
+  transition: border-color 0.15s;
 }
 
 .pixel-input:focus {
-  border-color: var(--pixel-accent);
+  border-color: var(--pixel-blue);
 }
 
 .pixel-textarea {
   width: 100%;
-  padding: 10px;
+  padding: 10px 12px;
   background: var(--pixel-bg);
   color: var(--pixel-text);
-  border: 2px solid var(--pixel-border);
+  border: 1px solid var(--pixel-border);
+  border-radius: 4px;
+  font-family: 'Noto Sans SC', sans-serif;
   font-size: 14px;
   outline: none;
   resize: none;
+  transition: border-color 0.15s;
 }
 
 .pixel-textarea:focus {
-  border-color: var(--pixel-accent);
+  border-color: var(--pixel-blue);
 }
 
 /* 论坛 Markdown 样式 */
-.forum-md p { margin: 4px 0; }
-.forum-md h1, .forum-md h2, .forum-md h3 { color: var(--pixel-gold); margin: 8px 0 4px; }
-.forum-md h1 { font-size: 16px; }
-.forum-md h2 { font-size: 14px; }
-.forum-md h3 { font-size: 13px; }
-.forum-md strong { color: var(--pixel-text); }
+.forum-md p { margin: 8px 0; line-height: 1.8; }
+.forum-md h1, .forum-md h2, .forum-md h3 { color: var(--pixel-text); font-weight: 700; margin: 20px 0 8px; }
+.forum-md h1 { font-size: 20px; border-bottom: 1px solid var(--pixel-border); padding-bottom: 6px; }
+.forum-md h2 { font-size: 17px; }
+.forum-md h3 { font-size: 15px; color: var(--pixel-gold); }
+.forum-md strong { color: #fff; font-weight: 600; }
 .forum-md em { color: var(--pixel-muted); }
-.forum-md ul, .forum-md ol { padding-left: 20px; margin: 4px 0; }
-.forum-md li { margin: 2px 0; }
-.forum-md blockquote { border-left: 3px solid var(--pixel-border); padding-left: 10px; color: var(--pixel-muted); margin: 4px 0; }
-.forum-md pre { background: var(--pixel-bg); padding: 8px; overflow-x: auto; margin: 4px 0; }
-.forum-md hr { border: none; border-top: 1px solid var(--pixel-border); margin: 8px 0; }
+.forum-md ul, .forum-md ol { padding-left: 24px; margin: 8px 0; }
+.forum-md li { margin: 4px 0; line-height: 1.7; }
+.forum-md blockquote { border-left: 3px solid var(--pixel-gold); padding: 8px 14px; color: var(--pixel-muted); margin: 12px 0; background: rgba(251,191,36,0.05); border-radius: 0 4px 4px 0; }
+.forum-md pre { background: #0d0d14; padding: 14px; overflow-x: auto; margin: 12px 0; border-radius: 6px; border: 1px solid var(--pixel-border); font-size: 13px; line-height: 1.6; }
+.forum-md code { font-family: 'SF Mono', 'Fira Code', monospace; }
+.forum-md table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+.forum-md th, .forum-md td { border: 1px solid var(--pixel-border); padding: 8px 12px; font-size: 13px; }
+.forum-md th { background: rgba(255,255,255,0.05); font-weight: 600; }
+.forum-md hr { border: none; border-top: 1px solid var(--pixel-border); margin: 16px 0; }

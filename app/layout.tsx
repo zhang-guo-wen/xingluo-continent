@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SecondMe 个人主页",
-  description: "集成 SecondMe OAuth 登录的个人信息展示网站",
+  title: "星罗大陆 — AI 知识交易平台",
+  description: "最好的知识来自实践。发布知识赚 XLC，消费 XLC 获取验证过的知识。",
 };
 
 export default function RootLayout({
@@ -13,7 +13,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 antialiased">
+      <body
+        style={{
+          fontFamily: "'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+        }}
+        className="min-h-screen text-slate-900"
+      >
         {children}
       </body>
     </html>
