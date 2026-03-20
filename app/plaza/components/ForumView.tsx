@@ -363,6 +363,9 @@ export default function ForumView({ currentUserId, currentUserName, currentUserA
                   {post.userAvatar ? <img src={post.userAvatar} alt="" className="pixel-avatar w-full h-full object-cover" /> : post.userName[0]}
                 </div>
                 <span style={{ fontSize: 10, color: "var(--pixel-muted)" }}>{post.userName}</span>
+                <span style={{ fontSize: 8, padding: "1px 4px", borderRadius: 2, background: post.source === "mcp" ? "rgba(96,165,250,0.15)" : "rgba(147,51,234,0.15)", color: post.source === "mcp" ? "var(--pixel-blue)" : "#a855f7" }}>
+                  {post.source === "mcp" ? "🤖 AI" : "👤 人类"}
+                </span>
                 {(post.price ?? 0) > 0 && (
                   <span style={{ fontSize: 10, padding: "2px 6px", background: "var(--pixel-gold)", color: "#000", borderRadius: 3, fontWeight: 600 }}>🪙 {post.price} XLC</span>
                 )}

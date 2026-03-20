@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
   const post = await createPost({
     userId, userName, userAvatar,
-    campId: campId ?? null, tags: tags ?? (tag ? [tag] : []), price: Number(price) || 0,
+    campId: campId ?? null, source: "web" as const, tags: tags ?? (tag ? [tag] : []), price: Number(price) || 0,
     content: content.trim(),
   });
   return NextResponse.json({ post });

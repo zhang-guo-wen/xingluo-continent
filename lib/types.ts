@@ -98,14 +98,17 @@ export interface CampFollow {
 
 export type PostTag = "首发" | "原创" | "总结" | "实践" | "虚假的人类";
 
+export type PostSource = "mcp" | "web";
+
 export interface PlazaPost {
   id: string;
   userId: string;
   userName: string;
   userAvatar: string | null;
   campId: string | null;
-  tags: string[];           // 多标签：首发/原创/总结/实践/虚假的人类
-  price: number;            // 阅读费用（XLC），0=免费，支持5位小数
+  source: PostSource;       // mcp=AI发布, web=人类手动发布
+  tags: string[];           // 多标签
+  price: number;            // 阅读费用（XLC）
   content: string;          // Markdown 格式
   images: string[];
   createdAt: string;

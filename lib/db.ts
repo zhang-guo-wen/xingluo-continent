@@ -49,6 +49,7 @@ async function ensureSchema() {
   await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS camp_id TEXT`.catch(() => {});
   await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS tag TEXT`.catch(() => {});
   await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS price REAL NOT NULL DEFAULT 0`.catch(() => {});
+  await sql`ALTER TABLE plaza_posts ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'web'`.catch(() => {});
   // 阅读记录表
   await sql`
     CREATE TABLE IF NOT EXISTS post_reads (
@@ -274,19 +275,20 @@ export async function updateUserProfile(userId: string, data: {
 
 // ============ 帖子 ============
 
-export async function createPost(post: Omit<PlazaPost, "id" | "createdAt" | "images" | "tags"> & { images?: string[]; tags?: string[]; price?: number }): Promise<PlazaPost> {
+export async function createPost(post: Omit<PlazaPost, "id" | "createdAt" | "images" | "tags"> & { images?: string[]; tags?: string[]; price?: number; source?: "mcp" | "web" }): Promise<PlazaPost> {
   const id = genId("post");
   const createdAt = new Date().toISOString();
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
     const tagsJson = JSON.stringify(post.tags ?? []);
-    await sql`INSERT INTO plaza_posts (id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at)
-      VALUES (${id}, ${post.userId}, ${post.userName}, ${post.userAvatar}, ${post.campId ?? null}, ${tagsJson}, ${post.price ?? 0}, ${post.content}, ${createdAt})`;
-    return { ...post, tags: post.tags ?? [], price: post.price ?? 0, images: post.images ?? [], id, createdAt };
+    const source = post.source ?? "web";
+    await sql`INSERT INTO plaza_posts (id, user_id, user_name, user_avatar, camp_id, tag, price, source, content, created_at)
+      VALUES (${id}, ${post.userId}, ${post.userName}, ${post.userAvatar}, ${post.campId ?? null}, ${tagsJson}, ${post.price ?? 0}, ${source}, ${post.content}, ${createdAt})`;
+    return { ...post, source: (post.source ?? "web") as "mcp" | "web", tags: post.tags ?? [], price: post.price ?? 0, images: post.images ?? [], id, createdAt };
   }
   const posts = readJson<PlazaPost[]>(POSTS_FILE, []);
-  const newPost: PlazaPost = { ...post, tags: post.tags ?? [], images: post.images ?? [], id, createdAt };
+  const newPost: PlazaPost = { ...post, source: (post.source ?? "web") as "mcp" | "web", tags: post.tags ?? [], images: post.images ?? [], id, createdAt };
   posts.unshift(newPost);
   writeJson(POSTS_FILE, posts);
   return newPost;
@@ -296,10 +298,10 @@ export async function getAllPosts(): Promise<PlazaPost[]> {
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
-    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at FROM plaza_posts ORDER BY created_at DESC`;
+    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, source, tag, price, content, created_at FROM plaza_posts ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, source: (r.source as "mcp" | "web") ?? "web", tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []);
@@ -310,10 +312,10 @@ export async function getCampPosts(campId: string): Promise<PlazaPost[]> {
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
-    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at FROM plaza_posts WHERE camp_id = ${campId} ORDER BY created_at DESC`;
+    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, source, tag, price, content, created_at FROM plaza_posts WHERE camp_id = ${campId} ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, source: (r.source as "mcp" | "web") ?? "web", tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []).filter((p) => p.campId === campId);
@@ -323,10 +325,10 @@ export async function getUserPosts(userId: string): Promise<PlazaPost[]> {
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
-    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, tag, price, content, created_at FROM plaza_posts WHERE user_id = ${userId} ORDER BY created_at DESC`;
+    const rows = await sql`SELECT id, user_id, user_name, user_avatar, camp_id, source, tag, price, content, created_at FROM plaza_posts WHERE user_id = ${userId} ORDER BY created_at DESC`;
     return rows.map((r) => ({
       id: r.id, userId: r.user_id, userName: r.user_name,
-      userAvatar: r.user_avatar, campId: r.camp_id ?? null, tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
+      userAvatar: r.user_avatar, campId: r.camp_id ?? null, source: (r.source as "mcp" | "web") ?? "web", tags: parseTags(r.tag), price: (r.price as number) ?? 0, content: r.content, images: [], createdAt: r.created_at,
     }));
   }
   return readJson<PlazaPost[]>(POSTS_FILE, []).filter((p) => p.userId === userId);
