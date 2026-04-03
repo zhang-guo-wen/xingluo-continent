@@ -220,9 +220,10 @@ export async function listPitfalls(offset = 0, limit = 20): Promise<{ reports: P
   };
 }
 
-/** 全文搜索（ILIKE 关键词匹配） */
+/** 全文搜索（ILIKE 关键词匹配，空格视为通配符） */
 export async function searchPitfalls(query: string, limit = 10): Promise<PitfallReport[]> {
-  const q = `%${query}%`;
+  // 把空格替换为 % 通配符，实现多词匹配
+  const q = `%${query.split(/\s+/).filter(Boolean).join("%")}%`;
 
   if (DATABASE_URL) {
     await ensureSchema();
@@ -251,13 +252,13 @@ export async function searchPitfalls(query: string, limit = 10): Promise<Pitfall
     return rows.map(rowToReport);
   }
 
-  // 文件回退：简单字符串匹配
+  // 文件回退：拆词匹配（所有词都必须出现）
   const reports = readJson<Record<string, unknown>[]>(PITFALL_FILE, []);
-  const lower = query.toLowerCase();
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const matched = reports.filter((r) => {
     const text = [r.title, r.errorType, r.errorMessage, r.solution, JSON.stringify(r.tags), r.language, r.framework]
       .filter(Boolean).join(" ").toLowerCase();
-    return text.includes(lower);
+    return words.every((w) => text.includes(w));
   });
   return matched.slice(0, limit).map(rowToReport);
 }
