@@ -230,7 +230,6 @@ export async function searchPitfalls(query: string, limit = 10): Promise<Pitfall
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
-    const allText = `COALESCE(title,'') || ' ' || COALESCE(error_type,'') || ' ' || COALESCE(error_message,'') || ' ' || COALESCE(solution,'') || ' ' || COALESCE(tags,'') || ' ' || COALESCE(language,'') || ' ' || COALESCE(framework,'')`;
     const rows = await sql`
       SELECT *, (
         CASE WHEN title ILIKE ${primary} THEN 3 ELSE 0 END +
@@ -239,7 +238,13 @@ export async function searchPitfalls(query: string, limit = 10): Promise<Pitfall
         CASE WHEN tags ILIKE ${primary} THEN 1 ELSE 0 END
       ) AS relevance
       FROM pitfall_reports
-      WHERE (${allText}) ILIKE ${primary}
+      WHERE title ILIKE ${primary}
+         OR error_type ILIKE ${primary}
+         OR error_message ILIKE ${primary}
+         OR solution ILIKE ${primary}
+         OR tags ILIKE ${primary}
+         OR language ILIKE ${primary}
+         OR framework ILIKE ${primary}
       ORDER BY relevance DESC, helpful_count DESC, created_at DESC
       LIMIT ${limit * 3}
     `;
