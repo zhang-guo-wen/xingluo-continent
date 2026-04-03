@@ -220,39 +220,47 @@ export async function listPitfalls(offset = 0, limit = 20): Promise<{ reports: P
   };
 }
 
-/** 全文搜索（ILIKE 关键词匹配，空格视为通配符） */
+/** 全文搜索（ILIKE 关键词匹配） */
 export async function searchPitfalls(query: string, limit = 10): Promise<PitfallReport[]> {
-  // 把空格替换为 % 通配符，实现多词匹配
-  const q = `%${query.split(/\s+/).filter(Boolean).join("%")}%`;
+  const words = query.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+  // 用第一个词做数据库查询，其余词在应用层过滤
+  const primary = `%${words[0]}%`;
 
   if (DATABASE_URL) {
     await ensureSchema();
     const sql = neon(DATABASE_URL);
+    const allText = `COALESCE(title,'') || ' ' || COALESCE(error_type,'') || ' ' || COALESCE(error_message,'') || ' ' || COALESCE(solution,'') || ' ' || COALESCE(tags,'') || ' ' || COALESCE(language,'') || ' ' || COALESCE(framework,'')`;
     const rows = await sql`
       SELECT *, (
-        CASE WHEN title ILIKE ${q} THEN 3 ELSE 0 END +
-        CASE WHEN error_type ILIKE ${q} THEN 2 ELSE 0 END +
-        CASE WHEN error_message ILIKE ${q} THEN 1 ELSE 0 END +
-        CASE WHEN solution ILIKE ${q} THEN 2 ELSE 0 END +
-        CASE WHEN tags ILIKE ${q} THEN 1 ELSE 0 END +
-        CASE WHEN language ILIKE ${q} THEN 1 ELSE 0 END +
-        CASE WHEN framework ILIKE ${q} THEN 1 ELSE 0 END
+        CASE WHEN title ILIKE ${primary} THEN 3 ELSE 0 END +
+        CASE WHEN error_type ILIKE ${primary} THEN 2 ELSE 0 END +
+        CASE WHEN solution ILIKE ${primary} THEN 2 ELSE 0 END +
+        CASE WHEN tags ILIKE ${primary} THEN 1 ELSE 0 END
       ) AS relevance
       FROM pitfall_reports
-      WHERE (COALESCE(title,'') || ' ' || COALESCE(error_type,'') || ' ' || COALESCE(error_message,'') || ' ' || COALESCE(solution,'') || ' ' || COALESCE(tags,'') || ' ' || COALESCE(language,'') || ' ' || COALESCE(framework,'')) ILIKE ${q}
+      WHERE (${allText}) ILIKE ${primary}
       ORDER BY relevance DESC, helpful_count DESC, created_at DESC
-      LIMIT ${limit}
+      LIMIT ${limit * 3}
     `;
-    return rows.map(rowToReport);
+    // 应用层过滤剩余关键词
+    const remaining = words.slice(1).map((w) => w.toLowerCase());
+    const filtered = rows.filter((r) => {
+      if (remaining.length === 0) return true;
+      const text = [r.title, r.error_type, r.error_message, r.solution, r.tags, r.language, r.framework]
+        .filter(Boolean).join(" ").toLowerCase();
+      return remaining.every((w) => text.includes(w));
+    });
+    return filtered.slice(0, limit).map(rowToReport);
   }
 
   // 文件回退：拆词匹配（所有词都必须出现）
   const reports = readJson<Record<string, unknown>[]>(PITFALL_FILE, []);
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const lowerWords = words.map((w) => w.toLowerCase());
   const matched = reports.filter((r) => {
     const text = [r.title, r.errorType, r.errorMessage, r.solution, JSON.stringify(r.tags), r.language, r.framework]
       .filter(Boolean).join(" ").toLowerCase();
-    return words.every((w) => text.includes(w));
+    return lowerWords.every((w) => text.includes(w));
   });
   return matched.slice(0, limit).map(rowToReport);
 }
