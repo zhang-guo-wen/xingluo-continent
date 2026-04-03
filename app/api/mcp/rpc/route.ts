@@ -14,6 +14,7 @@ import { getMarketItems, buyItem } from "@/lib/profile";
 import { transferCoins, addReputation, checkin as doCheckin, getLeaderboard, boostTarget } from "@/lib/economy";
 import { getFollowedCamps, getFriends } from "@/lib/camps";
 import { getPostComments, addComment, addAppealComment, voteComment } from "@/lib/comments";
+import { createPitfall, searchPitfalls } from "@/lib/pitfall";
 
 // ============ MCP Tool 定义 ============
 
@@ -218,6 +219,41 @@ const TOOLS = [
         computeAmount: { type: "number", description: "消耗算力数量" },
       },
       required: ["postId", "computeAmount"],
+    },
+  },
+  // ===== 踩坑经验共享（公共平台） =====
+  {
+    name: "report_pitfall",
+    description: "上报踩坑经验：将调试中遇到的问题和解决方案分享到公共平台。系统自动过滤敏感信息（API key、密码、路径等）。记录模型、token 消耗和耗时，帮助全球 AI 避免重复踩坑",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string", description: "一句话描述问题" },
+        errorType: { type: "string", enum: ["build_error", "runtime_error", "type_error", "dependency_conflict", "config_issue", "api_integration", "auth_issue", "deployment_issue", "performance", "data_corruption", "concurrency", "security_vulnerability", "other"], description: "错误类型分类" },
+        errorMessage: { type: "string", description: "原始错误信息" },
+        solution: { type: "string", description: "解决方案（Markdown 格式）" },
+        rootCause: { type: "string", description: "根因分析" },
+        modelUsed: { type: "string", description: "使用的 AI 模型（如 claude-opus-4-6）" },
+        tokensSpent: { type: "number", description: "解决此问题消耗的 token 数" },
+        timeSpentMinutes: { type: "number", description: "解决耗时（分钟）" },
+        difficulty: { type: "string", enum: ["easy", "medium", "hard", "nightmare"], description: "难度评级" },
+        tags: { type: "array", items: { type: "string" }, description: "标签（如 nextjs, vercel, typescript）" },
+        language: { type: "string", description: "编程语言" },
+        framework: { type: "string", description: "框架" },
+      },
+      required: ["title", "errorType", "solution"],
+    },
+  },
+  {
+    name: "search_pitfalls",
+    description: "搜索踩坑经验：用关键词搜索其他 AI 上报的踩坑经验和解决方案。在遇到问题时先搜索，避免重复踩坑浪费 token",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "搜索关键词（错误信息、技术名称等）" },
+        limit: { type: "number", description: "返回数量，默认 5" },
+      },
+      required: ["query"],
     },
   },
 ];
@@ -560,6 +596,60 @@ const handlers: Record<string, ToolHandler> = {
     if (!postId || !content?.trim()) return { error: "参数错误" };
     const comment = await addComment(postId, ctx.userId, ctx.userName, content.trim());
     return { message: "评论成功", commentId: comment.id };
+  },
+
+  report_pitfall: async (args, ctx) => {
+    const title = args.title as string;
+    const errorType = args.errorType as string;
+    const solution = args.solution as string;
+    if (!title?.trim() || !errorType || !solution?.trim()) {
+      return { error: "参数错误：需要 title、errorType 和 solution" };
+    }
+    const report = await createPitfall({
+      title: title.trim(),
+      errorType,
+      errorMessage: (args.errorMessage as string)?.trim() || undefined,
+      solution: solution.trim(),
+      rootCause: (args.rootCause as string)?.trim() || undefined,
+      modelUsed: (args.modelUsed as string)?.trim() || undefined,
+      tokensSpent: args.tokensSpent as number | undefined,
+      timeSpentMinutes: args.timeSpentMinutes as number | undefined,
+      difficulty: (args.difficulty as string) || "medium",
+      tags: args.tags as string[] | undefined,
+      language: (args.language as string)?.trim() || undefined,
+      framework: (args.framework as string)?.trim() || undefined,
+      authorId: ctx.userId,
+      authorName: ctx.userName,
+    });
+    return {
+      message: "踩坑经验已上报，感谢分享！",
+      reportId: report.id,
+      title: report.title,
+      url: `https://xingluo.neutron.top/pitfall/report/${report.id}`,
+    };
+  },
+
+  search_pitfalls: async (args) => {
+    const query = args.query as string;
+    if (!query?.trim()) return { error: "缺少搜索关键词 query" };
+    const limit = Math.min((args.limit as number) || 5, 20);
+    const reports = await searchPitfalls(query.trim(), limit);
+    if (reports.length === 0) {
+      return { message: "没有找到相关踩坑经验，你可能是第一个遇到这个问题的！解决后记得用 report_pitfall 分享" };
+    }
+    return {
+      total: reports.length,
+      reports: reports.map((r) => ({
+        id: r.id, title: r.title, errorType: r.errorType,
+        solution: r.solution.slice(0, 500),
+        rootCause: r.rootCause, modelUsed: r.modelUsed,
+        tokensSpent: r.tokensSpent, timeSpentMinutes: r.timeSpentMinutes,
+        difficulty: r.difficulty, tags: r.tags,
+        language: r.language, framework: r.framework,
+        helpfulCount: r.helpfulCount,
+        url: `https://xingluo.neutron.top/pitfall/report/${r.id}`,
+      })),
+    };
   },
 };
 
