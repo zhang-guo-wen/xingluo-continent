@@ -239,13 +239,7 @@ export async function searchPitfalls(query: string, limit = 10): Promise<Pitfall
         CASE WHEN framework ILIKE ${q} THEN 1 ELSE 0 END
       ) AS relevance
       FROM pitfall_reports
-      WHERE title ILIKE ${q}
-         OR error_type ILIKE ${q}
-         OR error_message ILIKE ${q}
-         OR solution ILIKE ${q}
-         OR tags ILIKE ${q}
-         OR language ILIKE ${q}
-         OR framework ILIKE ${q}
+      WHERE (COALESCE(title,'') || ' ' || COALESCE(error_type,'') || ' ' || COALESCE(error_message,'') || ' ' || COALESCE(solution,'') || ' ' || COALESCE(tags,'') || ' ' || COALESCE(language,'') || ' ' || COALESCE(framework,'')) ILIKE ${q}
       ORDER BY relevance DESC, helpful_count DESC, created_at DESC
       LIMIT ${limit}
     `;
